@@ -813,20 +813,6 @@ td.negative { color:var(--red);   font-weight:600; }
   content: ''; flex: 1; height: 1px; background: var(--border2);
 }
 
-/* ── Biometria / Face ID ── */
-.auth-biometric-btn {
-  width: 100%; padding: 14px; border: 1.5px solid var(--border2);
-  border-radius: 16px; background: var(--surface2);
-  color: var(--text2); font-size: 14px; font-weight: 600;
-  cursor: pointer; display: flex; align-items: center;
-  justify-content: center; gap: 10px;
-  font-family: -apple-system,sans-serif;
-  -webkit-tap-highlight-color: transparent;
-  transition: background .15s, border-color .15s;
-}
-.auth-biometric-btn:active { background: var(--surface3); border-color: var(--green); }
-.auth-biometric-icon { font-size: 22px; }
-
 /* ── Segurança ── */
 .auth-security {
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -1275,13 +1261,6 @@ td.negative { color:var(--red);   font-weight:600; }
         Entrar na conta
       </button>
 
-      <!-- Biometria (Face ID / Touch ID) -->
-      <div class="auth-divider" id="auth-bio-divider" style="display:none">ou</div>
-      <button class="auth-biometric-btn" id="auth-bio-btn" onclick="doFaceID()" style="display:none">
-        <span class="auth-biometric-icon">🔐</span>
-        <span id="auth-bio-label">Entrar com Face ID</span>
-      </button>
-
     </div>
 
     <!-- ══════════════════ FORM CADASTRO ══════════════════ -->
@@ -1586,11 +1565,11 @@ td.negative { color:var(--red);   font-weight:600; }
         <!-- Saldo principal -->
         <div class="hero-balance-area">
           <div class="hero-balance-label">
-            Saldo do Mês
+            Saldo Disponível
             <span class="hero-balance-month" id="hero-mes-label">Jun/2025</span>
           </div>
           <div class="hero-balance-value" id="kpi-saldo">R$ 0,00</div>
-          <div class="hero-balance-sub" id="hero-poupanca-sub">0% de poupança este mês</div>
+          <div class="hero-balance-sub" id="hero-poupanca-sub">saldo acumulado na carteira</div>
         </div>
 
         <!-- Strip receita / despesa / economia -->
@@ -2818,53 +2797,9 @@ function entrarNoApp() {
   }
 }
 
-/* ── Face ID / Touch ID simulado ── */
-async function doFaceID() {
-  const btn  = document.getElementById('auth-bio-btn');
-  const lbl  = document.getElementById('auth-bio-label');
-  if (!btn) return;
-  btn.disabled = true;
-  if (lbl) lbl.textContent = 'Verificando...';
-  const icon = btn.querySelector('.auth-biometric-icon');
-  if (icon) icon.textContent = '⏳';
-
-  const lastEmail = localStorage.getItem('finance_last_email');
-  if (!lastEmail) {
-    btn.disabled = false; if (lbl) lbl.textContent = 'Entrar com Face ID'; if (icon) icon.textContent = '🔐';
-    setMsg('login-msg','Faça login manualmente primeiro.','err'); return;
-  }
-  await new Promise(r => setTimeout(r, 1100));
-  const user = await getUserByEmail(lastEmail).catch(()=>null);
-  if (!user) {
-    btn.disabled = false; if (lbl) lbl.textContent = 'Entrar com Face ID'; if (icon) icon.textContent = '🔐';
-    setMsg('login-msg','Conta não encontrada.','err'); return;
-  }
-  if (icon) icon.textContent = '✅';
-  if (lbl)  lbl.textContent  = 'Autenticado!';
-  currentUser = user;
-  localStorage.setItem('finance_last_email', user.email);
-  setTimeout(entrarNoApp, 450);
-}
-
 /* ── Detectar suporte a biometria no iOS ── */
 function checkBiometricSupport() {
-  const lastEmail = localStorage.getItem('finance_last_email');
-  if (!lastEmail) return;
-  // Mostrar botão de biometria se há conta salva
-  const bioBtn = document.getElementById('auth-bio-btn');
-  const bioDivider = document.getElementById('auth-bio-divider');
-  const bioLabel   = document.getElementById('auth-bio-label');
-  if (!bioBtn) return;
-  // Detectar Face ID vs Touch ID (aproximado via user agent)
-  const isIphone = /iphone/i.test(navigator.userAgent);
-  if (isIphone) {
-    if (bioDivider) bioDivider.style.display = 'flex';
-    bioBtn.style.display = 'flex';
-    // iPhone X+ tem Face ID, modelos mais antigos têm Touch ID
-    const model = navigator.userAgent.match(/iPhone OS (\d+)/);
-    const ver   = model ? parseInt(model[1]) : 0;
-    if (bioLabel) bioLabel.textContent = ver >= 14 ? 'Entrar com Face ID' : 'Entrar com Touch ID';
-  }
+  // Face ID removido — função mantida para compatibilidade
 }
 
 
@@ -3066,14 +3001,21 @@ function renderKPIs() {
   /* Dashboard hero */
   setEl('kpi-rec',    fmt(k.recM));
   setEl('kpi-desp',   fmt(k.despM));
-  setEl('kpi-saldo',  fmt(k.saldoM));
+  setEl('kpi-saldo',  fmt(k.saldoCarteira));   // ← saldo acumulado da carteira
   setEl('kpi-pat',    fmt(Math.max(0,k.patrimonioLiq)));
   setEl('kpi-pct',    k.pct+'%');
   setEl('kpi-inv-strip', fmt(k.invM));
-  // Sub-texto de poupança
+  setEl('kpi-saldo-carteira', fmt(k.saldoCarteira));
+  // Sub-texto do hero
   const poupSub = document.getElementById('hero-poupanca-sub');
-  if (poupSub) poupSub.textContent = k.pct + '% de poupança este mês';
-  // Mês no hero
+  if (poupSub) {
+    const cor = k.saldoCarteira >= 0 ? 'rgba(255,255,255,0.8)' : '#ffaaaa';
+    poupSub.style.color = cor;
+    poupSub.textContent = k.saldoCarteira >= 0
+      ? 'saldo acumulado disponível'
+      : '⚠️ saldo negativo — atenção!';
+  }
+  // Mês/ano no hero
   const MESES_HERO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const mesLabel = document.getElementById('hero-mes-label');
   if (mesLabel) mesLabel.textContent = MESES_HERO[new Date().getMonth()] + '/' + new Date().getFullYear();
