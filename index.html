@@ -1187,6 +1187,8 @@ td.negative { color:var(--red);   font-weight:600; }
 .orc-cat    { font-size:14px; font-weight:700; color:var(--text); }
 .orc-status { font-size:11px; font-weight:700; padding:3px 9px; border-radius:10px; }
 
+
+
 </style>
 </head>
 <body>
@@ -3463,13 +3465,16 @@ const PAGE_TITLES = {
   dados:'📂 Dados', historico:'📊 Histórico',
   financeiro:'💰 Financeiro', reserva:'🛡️ Reserva', comparativo:'📊 Comparativo', projecao:'📉 Projeção', simulador:'🧮 Simulador'
 };
-function goTo(screen, el) {
+function goTo(screen, el, forceDir=null) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('screen-'+screen).classList.add('active');
+  const targetEl = document.getElementById('screen-'+screen);
+  if (!targetEl) return;
+  targetEl.classList.add('active');
   if (el) el.classList.add('active');
   document.getElementById('pageTitle').textContent = PAGE_TITLES[screen]||screen;
 }
+
 
 /* ═══════════════════════════════════════════════
    ADICIONAR TRANSAÇÃO
@@ -6440,6 +6445,54 @@ function atualizarInfoDados() {
     if (datas.length) pe.textContent = datas[0].slice(0,7) + ' → ' + datas[datas.length-1].slice(0,7);
   }
 }
+
+
+/* ═══════════════════════════════════════════════════
+   HAPTIC FEEDBACK — vibração tátil nos botões
+═══════════════════════════════════════════════════ */
+function haptic(style) {
+  if (!('vibrate' in navigator)) return;
+  const p = { light:8, medium:18, success:[8,40,8], error:[30,20,30] };
+  navigator.vibrate(p[style] || 8);
+}
+
+function initHaptic() {
+  // Bottom nav
+  document.querySelectorAll('.mnav-btn, .mnav-fab').forEach(el =>
+    el.addEventListener('touchstart', () => haptic('light'), { passive:true }));
+
+  // Botões primários (salvar, adicionar, confirmar)
+  document.querySelectorAll('.btn-green, .auth-btn').forEach(el =>
+    el.addEventListener('touchstart', () => haptic('medium'), { passive:true }));
+
+  // Itens do drawer
+  document.querySelectorAll('.mob-drawer-item').forEach(el =>
+    el.addEventListener('touchstart', () => haptic('light'), { passive:true }));
+
+  // Export options
+  document.querySelectorAll('.export-option').forEach(el =>
+    el.addEventListener('touchstart', () => haptic('light'), { passive:true }));
+
+  // Del buttons
+  document.querySelectorAll('.del-btn').forEach(el =>
+    el.addEventListener('touchstart', () => haptic('light'), { passive:true }));
+}
+
+/* Haptic no toast de resultado */
+const _showToastH = showToast;
+showToast = function(msg, tipo='info', dur=3000) {
+  if (tipo === 'success') haptic('success');
+  if (tipo === 'error')   haptic('error');
+  _showToastH(msg, tipo, dur);
+};
+
+/* Inicializar após login */
+const _entrarH = entrarNoApp;
+entrarNoApp = function() {
+  _entrarH();
+  setTimeout(initHaptic, 600);
+};
+
 </script>
 
 <!-- MODAL ORÇAMENTO -->
