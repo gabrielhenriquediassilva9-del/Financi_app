@@ -1468,7 +1468,38 @@ td.negative { color:var(--red);   font-weight:600; }
         style="border:none;background:none;outline:none;color:var(--text);font-size:14px;flex:1">
     </div>
   </div>
-  <button onclick="submitQA()" style="width:100%;padding:14px;border-radius:14px;background:var(--green);color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-top:4px;box-shadow:0 4px 14px rgba(0,201,141,.35)">
+
+  <!-- Cartão de crédito (só aparece em Despesa) -->
+  <div id="qa-cartao-wrap" style="display:none;margin-bottom:12px">
+    <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;-webkit-tap-highlight-color:transparent"
+      onclick="toggleQACartao()">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:18px">💳</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Pagar no cartão</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px">Débito na fatura, não no saldo</div>
+        </div>
+      </div>
+      <!-- Toggle pill -->
+      <div id="qa-cartao-pill" style="width:46px;height:26px;border-radius:999px;background:var(--surface3);border:1px solid var(--border2);position:relative;transition:background .25s;flex-shrink:0">
+        <div id="qa-cartao-knob" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.2);transition:left .25s cubic-bezier(.4,0,.2,1)"></div>
+      </div>
+    </label>
+    <!-- Seletor de cartão (aparece quando toggle ON) -->
+    <div id="qa-cartao-sel" style="display:none;margin-top:10px">
+      <div class="input-row" style="background:var(--purple-dim);border-color:rgba(124,77,255,0.3)">
+        <span style="color:var(--purple);font-size:14px">💳</span>
+        <select id="qa-cartao-nome" style="width:100%;background:none;border:none;outline:none;color:var(--text);font-size:14px;font-weight:600">
+          <!-- populado por JS -->
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--purple);margin-top:6px;padding:0 4px;opacity:.85">
+        ⚠️ Gasto entra na fatura do cartão. O saldo só é debitado ao pagar a fatura.
+      </div>
+    </div>
+  </div>
+
+  <button onclick="submitQA()" id="qa-submit-btn" style="width:100%;padding:14px;border-radius:14px;background:var(--green);color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-top:4px;box-shadow:0 4px 14px rgba(0,201,141,.35)">
     ＋ Adicionar
   </button>
 </div>
@@ -4602,42 +4633,93 @@ function closeDrawer() {
   document.getElementById('mob-drawer-overlay')?.classList.remove('open');
 }
 
-/* Quick Add */
 let qaTipo = 'receita';
+let qaUsarCartao = false;
+
 function openQA() {
   document.getElementById('mob-qa').classList.add('open');
   document.getElementById('mob-qa-overlay').classList.add('open');
-  // Preencher data de hoje
+  // Data de hoje
   const qaData = document.getElementById('qa-data');
   if (qaData && !qaData.value) qaData.valueAsDate = new Date();
+  // Popular cartões disponíveis
+  popularQACartoes();
   setTimeout(() => document.getElementById('qa-val')?.focus(), 250);
 }
+
 function closeQA() {
   document.getElementById('mob-qa')?.classList.remove('open');
   document.getElementById('mob-qa-overlay')?.classList.remove('open');
-  document.getElementById('qa-val').value  = '';
-  document.getElementById('qa-desc').value = '';
+  document.getElementById('qa-val').value   = '';
+  document.getElementById('qa-desc').value  = '';
   const qaData = document.getElementById('qa-data');
   if (qaData) qaData.value = '';
+  // Resetar cartão
+  qaUsarCartao = false;
+  atualizarQACartaoPill(false);
+  const sel = document.getElementById('qa-cartao-sel');
+  if (sel) sel.style.display = 'none';
+  // Resetar tipo para receita
+  setQATipo('receita');
 }
+
+function popularQACartoes() {
+  const sel = document.getElementById('qa-cartao-nome');
+  if (!sel) return;
+  // Cartões da configuração + cartões já usados em TX
+  const configNomes = Object.keys(CARTOES_CONFIG);
+  const txNomes     = [...new Set(TX.filter(t=>t.cartao).map(t=>t.cartao))];
+  const todos = [...new Set([...configNomes, ...txNomes,
+    'Nubank','Inter','Itaú','Bradesco','Santander','C6','XP','Outro'])];
+  sel.innerHTML = todos.map(n => `<option value="${n}">${n}</option>`).join('');
+}
+
 function setQATipo(tipo) {
   qaTipo = tipo;
   const cols = { receita:'var(--green)', despesa:'var(--red)', investimento:'var(--blue)' };
   const dims  = { receita:'var(--green-dim)', despesa:'var(--red-dim)', investimento:'var(--blue-dim)' };
-  const map = { receita:'qa-t-rec', despesa:'qa-t-des', investimento:'qa-t-inv' };
+  const map   = { receita:'qa-t-rec', despesa:'qa-t-des', investimento:'qa-t-inv' };
   Object.entries(map).forEach(([t, id]) => {
     const b = document.getElementById(id);
     if (!b) return;
-    const active = t === tipo;
-    b.style.borderColor = active ? cols[t] : 'var(--border2)';
-    b.style.background  = active ? dims[t] : 'none';
-    b.style.color       = active ? cols[t] : 'var(--muted)';
+    b.style.borderColor = t === tipo ? cols[t] : 'var(--border2)';
+    b.style.background  = t === tipo ? dims[t] : 'none';
+    b.style.color       = t === tipo ? cols[t] : 'var(--muted)';
   });
   const val = document.getElementById('qa-val');
   if (val) val.style.color = cols[tipo];
   const bar = document.getElementById('qa-color-bar');
   if (bar) bar.style.background = cols[tipo];
+  // Mostrar opção de cartão só para despesa
+  const wrap = document.getElementById('qa-cartao-wrap');
+  if (wrap) wrap.style.display = tipo === 'despesa' ? 'block' : 'none';
+  // Esconder botão submit e mudar cor
+  const btn = document.getElementById('qa-submit-btn');
+  if (btn) btn.style.background = cols[tipo];
+  // Se mudar de despesa, resetar cartão
+  if (tipo !== 'despesa' && qaUsarCartao) {
+    qaUsarCartao = false;
+    atualizarQACartaoPill(false);
+    const sel = document.getElementById('qa-cartao-sel');
+    if (sel) sel.style.display = 'none';
+  }
 }
+
+function toggleQACartao() {
+  qaUsarCartao = !qaUsarCartao;
+  atualizarQACartaoPill(qaUsarCartao);
+  const sel = document.getElementById('qa-cartao-sel');
+  if (sel) sel.style.display = qaUsarCartao ? 'block' : 'none';
+  haptic('light');
+}
+
+function atualizarQACartaoPill(on) {
+  const pill = document.getElementById('qa-cartao-pill');
+  const knob = document.getElementById('qa-cartao-knob');
+  if (pill) pill.style.background = on ? 'var(--purple)' : 'var(--surface3)';
+  if (knob) knob.style.left = on ? '23px' : '3px';
+}
+
 function submitQA() {
   const valor = parseFloat(document.getElementById('qa-val').value);
   const desc  = (document.getElementById('qa-desc').value || '').trim();
@@ -4646,18 +4728,32 @@ function submitQA() {
   if (!valor || isNaN(valor) || valor <= 0 || !desc) {
     showToast('Preencha descrição e valor.', 'warn'); return;
   }
-  // Usar data selecionada ou hoje
   const baseDate = dsVal ? new Date(dsVal + 'T12:00:00') : new Date();
-  TX.unshift({
-    id: nextId++, tipo: qaTipo, desc, cat,
-    mes: baseDate.getMonth(), ano: baseDate.getFullYear(),
-    val: qaTipo === 'receita' ? valor : -Math.abs(valor),
-    data: baseDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}),
+  const entry = {
+    id:      nextId++,
+    tipo:    qaTipo,
+    desc, cat,
+    mes:     baseDate.getMonth(),
+    ano:     baseDate.getFullYear(),
+    val:     qaTipo === 'receita' ? valor : -Math.abs(valor),
+    data:    baseDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}),
     dataISO: baseDate.toISOString().slice(0,10),
-  });
+  };
+  // Cartão de crédito
+  if (qaTipo === 'despesa' && qaUsarCartao) {
+    const nomeCartao = document.getElementById('qa-cartao-nome')?.value || 'Cartão';
+    entry.cartao  = nomeCartao;
+    entry.parcela = '1/1';
+    entry.fatPaga = false;
+  }
+  TX.unshift(entry);
   closeQA();
   renderAll();
-  showToast('Lançamento adicionado! ✅', 'success');
+  if (entry.cartao) {
+    showToast(`Lançado na fatura ${entry.cartao} 💳`, 'success');
+  } else {
+    showToast('Lançamento adicionado! ✅', 'success');
+  }
 }
 
 /* Sync mês mobile ↔ desktop */
