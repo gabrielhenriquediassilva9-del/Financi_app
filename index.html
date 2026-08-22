@@ -3078,7 +3078,8 @@ function byMonth(tipo) {
 function catTotals(mes) {
   const c = {'🏠 Moradia':0,'🍽️ Aliment.':0,'🚗 Transporte':0,
              '💊 Saúde':0,'📚 Educação':0,'🎭 Lazer':0,'🙏 Dízimo':0,'🆘 Outros':0};
-  TX.filter(t => t.tipo === 'despesa' && (mes === undefined || mes === 'all' || t.mes === mes)).forEach(t => {
+  // Excluir itens de cartão — só pagFatura entra como despesa real
+  TX.filter(t => t.tipo === 'despesa' && !isCartaoItem(t) && (mes === undefined || mes === 'all' || t.mes === mes)).forEach(t => {
     const k = {
       '🏠 Moradia':'🏠 Moradia','🍽️ Alimentação':'🍽️ Aliment.',
       '🚗 Transporte':'🚗 Transporte','💊 Saúde':'💊 Saúde',
@@ -3102,24 +3103,30 @@ function recSources() {
 }
 
 function isCartaoPendente(t) {
-  // Compra no cartão que ainda não foi paga na fatura
+  // Compra no cartão ainda não paga = não entra no saldo
   return t.cartao && !t.fatPaga;
+}
+
+function isCartaoItem(t) {
+  // Qualquer item de cartão (pago ou pendente) — nunca entra direto no saldo
+  // O único que entra é o lançamento pagFatura
+  return !!t.cartao;
 }
 
 function kpis() {
   const m = new Date().getMonth();
   const anoAtual = new Date().getFullYear();
-  // Saldo do mês atual
+  // Saldo do mês: exclui TODOS os itens de cartão (pendentes e pagos)
+  // Apenas o lançamento pagFatura entra quando a fatura é paga
   const recM  = TX.filter(t=>t.tipo==='receita'      && t.mes===m && t.ano===anoAtual).reduce((s,t)=>s+t.val,0);
-  const despM = TX.filter(t=>t.tipo==='despesa'      && t.mes===m && t.ano===anoAtual && !isCartaoPendente(t)).reduce((s,t)=>s+Math.abs(t.val),0);
+  const despM = TX.filter(t=>t.tipo==='despesa'      && t.mes===m && t.ano===anoAtual && !isCartaoItem(t)).reduce((s,t)=>s+Math.abs(t.val),0);
   const invM  = TX.filter(t=>t.tipo==='investimento' && t.mes===m && t.ano===anoAtual).reduce((s,t)=>s+Math.abs(t.val),0);
-  // Totais históricos (para outros cálculos internos)
+  // Totais históricos: mesma regra — itens de cartão excluídos, pagFatura incluído
   const totalRec  = TX.filter(t=>t.tipo==='receita').reduce((s,t)=>s+t.val,0);
-  const totalDesp = TX.filter(t=>t.tipo==='despesa' && !isCartaoPendente(t)).reduce((s,t)=>s+Math.abs(t.val),0);
+  const totalDesp = TX.filter(t=>t.tipo==='despesa' && !isCartaoItem(t)).reduce((s,t)=>s+Math.abs(t.val),0);
   const totalInv  = TX.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+Math.abs(t.val),0);
-  // Saldo acumulado na carteira (todas as receitas - despesas - investimentos, todos os meses)
   const saldoCarteira = totalRec - totalDesp - totalInv;
-  // Patrimônio líquido = calculado manualmente pelo usuário
+  // Patrimônio manual
   const totAtivos   = PATRIMONIO_MANUAL.ativos.reduce((s,a)=>s+a.val,0);
   const totPassivos = PATRIMONIO_MANUAL.passivos.reduce((s,p)=>s+p.val,0);
   const patrimonioLiq = totAtivos - totPassivos;
@@ -3128,7 +3135,6 @@ function kpis() {
            saldoCarteira,
            totalRec, totalDesp, totalInv,
            totAtivos, totPassivos, patrimonioLiq,
-           // legado — mantido para não quebrar outros lugares
            patrimonio: patrimonioLiq,
            pct: recM > 0 ? ((recM-despM-invM)/recM*100).toFixed(1) : '0' };
 }
@@ -4552,7 +4558,7 @@ function gerarRelatorio() {
 
   const txMes = TX.filter(t => t.mes === m);
   const receitas = txMes.filter(t=>t.tipo==='receita');
-  const despesas = txMes.filter(t=>t.tipo==='despesa' && !isCartaoPendente(t));
+  const despesas = txMes.filter(t=>t.tipo==='despesa' && !isCartaoItem(t));
   const investimentos = txMes.filter(t=>t.tipo==='investimento');
   const cartaoPend = TX.filter(t=>t.cartao && !t.fatPaga);
 
@@ -5385,7 +5391,7 @@ function renderHistorico() {
   // Montar dados por mês
   const meses = Array.from({length:12},(_,i)=>i);
   const recArr  = meses.map(m => TX.filter(t=>t.tipo==='receita'      &&t.mes===m&&(t.ano||new Date().getFullYear())===anoSel).reduce((s,t)=>s+t.val,0));
-  const despArr = meses.map(m => TX.filter(t=>t.tipo==='despesa'      &&t.mes===m&&(t.ano||new Date().getFullYear())===anoSel&&!isCartaoPendente(t)).reduce((s,t)=>s+Math.abs(t.val),0));
+  const despArr = meses.map(m => TX.filter(t=>t.tipo==='despesa'      &&t.mes===m&&(t.ano||new Date().getFullYear())===anoSel&&!isCartaoItem(t)).reduce((s,t)=>s+Math.abs(t.val),0));
   const invArr  = meses.map(m => TX.filter(t=>t.tipo==='investimento' &&t.mes===m&&(t.ano||new Date().getFullYear())===anoSel).reduce((s,t)=>s+Math.abs(t.val),0));
   const saldoArr= meses.map((_,i)=>recArr[i]-despArr[i]-invArr[i]);
   const acumArr = []; saldoArr.reduce((a,v,i)=>{acumArr[i]=a+v;return a+v;},0);
@@ -5936,42 +5942,192 @@ function cancelarCSV() {
   if (f) f.value = '';
 }
 
+/* ═══════════════════════════════════════════════════
+   MOTOR DE CATEGORIZAÇÃO — Inter / extrato brasileiro
+   Baseado nos padrões reais dos seus extratos
+═══════════════════════════════════════════════════ */
+function categorizarTransacao(desc, val) {
+  const d = desc.toUpperCase();
+  const tipo = val > 0 ? 'receita' : 'despesa';
+
+  /* ── IGNORAR / PULAR ────────────────────────── */
+  // Aplicações e resgates RDB são investimentos internos — ignorar
+  if (/APLICA[CÇ][AÃ]O RDB|RESGATE RDB/.test(d)) return null;
+  // Pagamento de fatura — registrar como despesa genérica
+  if (/PAGAMENTO DE FATURA/.test(d)) return { tipo:'despesa', cat:'💳 Cartão de Crédito' };
+  // Valor adicionado para Pix no crédito — ignorar (entrada + saída par)
+  if (/VALOR ADICIONADO.*PIX NO CR/.test(d)) return null;
+  // Reembolso Mercado Pago / PIX Marketplace que entra e sai no mesmo dia — manter ambos
+  if (/REEMBOLSO RECEBIDO/.test(d)) return { tipo:'receita', cat:'🎁 Outros' };
+
+  /* ── RECEITAS ───────────────────────────────── */
+  // Salário principal (transferência do Sicoob do próprio Gabriel)
+  if (/GABRIEL HENRIQUE DIAS SILVA.*SICOOB|GABRIEL HENRIQUE DIAS SILVA.*BANCO SICOOB/.test(d)) {
+    return { tipo:'receita', cat:'💼 Salário' };
+  }
+  // Freelance / renda extra (CONECT CELL)
+  if (/CONECT CELL/.test(d)) return { tipo:'receita', cat:'💰 Freelance' };
+  // Renda de Samuel (divisão de conta / adiantamento)
+  if (/SAMUEL DAVID DIAS SILVA/.test(d)) return { tipo:'receita', cat:'💰 Freelance' };
+  // Depósito boleto (receita extra)
+  if (/DEP[OÓ]SITO RECEBIDO POR BOLETO/.test(d)) return { tipo:'receita', cat:'💰 Freelance' };
+  // Qualquer outra transferência recebida ou Pix recebido
+  if (val > 0 && /TRANSFER.*RECEBIDA|PIX.*RECEBIDA|RECEBIDA.*PIX|TRANSFER.*RECEBIDO/.test(d)) {
+    return { tipo:'receita', cat:'💰 Freelance' };
+  }
+
+  /* ── DÍZIMO / IGREJA ────────────────────────── */
+  if (/IGREJA|ASSEMBLEIA DE DEUS|ASSEMBL[EÉ]IA/.test(d)) return { tipo:'despesa', cat:'🙏 Dízimo' };
+
+  /* ── TRANSPORTE / COMBUSTÍVEL ───────────────── */
+  if (/POSTO|COMBUSTIV|GASOLINA|ETANOL|COMPROP\*POSTO|PAREBEM.*POSTO|POSTO.*UAIS|POSTOBARATAO|RJ POSTO|POSTO BARATAO/.test(d)) {
+    return { tipo:'despesa', cat:'🚗 Transporte' };
+  }
+  if (/UBER|99APP|INDRIVER|TAXI|METR[OÔ]|ONIBUS|[OÔ]NIBUS/.test(d)) {
+    return { tipo:'despesa', cat:'🚗 Transporte' };
+  }
+
+  /* ── ALIMENTAÇÃO ────────────────────────────── */
+  if (/SUPERMERCADO|SUPERMERCADOS BH|MERCADO|HIPERMERCADO|ATACAD|HORTIFRUT/.test(d)) {
+    return { tipo:'despesa', cat:'🍽️ Alimentação' };
+  }
+  if (/BURGER|LANCH|PIZZA|RESTAURANTE|LANCHE|SORVETE|AÇA[IÍ]|GRANOLA|DUBETO|LHARYSSA|QUATRO ESTAC|FORMIGUENSE/.test(d)) {
+    return { tipo:'despesa', cat:'🍽️ Alimentação' };
+  }
+  if (/IFOOD|RAPPI|UBER.*EAT|DELIVERY|PADARIA|PANIFICA|CAFE|BAR |SNACK/.test(d)) {
+    return { tipo:'despesa', cat:'🍽️ Alimentação' };
+  }
+
+  /* ── SAÚDE ──────────────────────────────────── */
+  if (/DROGARIA|FARMACIA|FARM[AÁ]CIA|DROGASMIL|ULTRAFARMA|MEDIC|CL[IÍ]NICA|HOSPITAL|LABORAT|PLANO.*SA[UÚ]DE|UNIMED|HAPVIDA/.test(d)) {
+    return { tipo:'despesa', cat:'💊 Saúde' };
+  }
+
+  /* ── PET ────────────────────────────────────── */
+  if (/UAIDOG|PET SHOP|PETSHOP|VETERINA|ANIMAIS/.test(d)) {
+    return { tipo:'despesa', cat:'🎁 Outros' };
+  }
+
+  /* ── LAZER / BELEZA ─────────────────────────── */
+  if (/SALAO|SAL[AÃ]O|BARBEARIA|CABELEIREIRA|HUGU|PAYGO\*SALAO/.test(d)) {
+    return { tipo:'despesa', cat:'🎭 Lazer' };
+  }
+  if (/CINEMA|SHOW|TEATRO|NETFLIX|SPOTIFY|DISNEY|AMAZON.*PRIME|HBO|STEAM|GAME|SAMONTE/.test(d)) {
+    return { tipo:'despesa', cat:'🎭 Lazer' };
+  }
+
+  /* ── EDUCAÇÃO ───────────────────────────────── */
+  if (/ESCOLA|FACULDADE|UNIVERSIDADE|CURSO|LIVRARIA|LIVROS|EDUCAÇÃO|NUUVEM/.test(d)) {
+    return { tipo:'despesa', cat:'📚 Educação' };
+  }
+
+  /* ── MORADIA / SERVIÇOS ─────────────────────── */
+  if (/ALUGUEL|CONDOM[IÍ]NIO|AGUA|LUZ |ENERGIA|TELECOM|INTERNET|CELULAR|M4 PRODUTOS|HIDRAULICA/.test(d)) {
+    return { tipo:'despesa', cat:'🏠 Moradia' };
+  }
+
+  /* ── SERVIÇOS DIGITAIS / ASSINATURAS ─────────── */
+  if (/PAGSEGURO|SHPP BRASIL|X1APOIO|X1 APOIO|MERCADO PAGO|PIX MARKETPLACE/.test(d)) {
+    return { tipo:'despesa', cat:'🎁 Outros' };
+  }
+  if (/AMERICANAS|SHOPEE|ALIEXPRESS|AMAZON|MAGAZINE/.test(d)) {
+    return { tipo:'despesa', cat:'🎁 Outros' };
+  }
+
+  /* ── TRANSFERÊNCIAS PESSOAIS (saída) ─────────── */
+  if (val < 0 && /TRANSFER.*ENVIADA|PIX.*ENVIADA|ENVIADA.*PIX/.test(d)) {
+    return { tipo:'despesa', cat:'🎁 Outros' };
+  }
+
+  /* ── FALLBACK ────────────────────────────────── */
+  return { tipo, cat: tipo === 'receita' ? '💰 Freelance' : '🎁 Outros' };
+}
+
 function confirmarCSV() {
   if (!_csvParsed.length) return;
   const btn = document.getElementById('csv-confirm-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Importando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Categorizando...'; }
   let importados = 0, ignorados = 0;
 
   _csvParsed.forEach(item => {
     const val = item.val;
-    if (val === null || isNaN(val) || val === 0) { ignorados++; return; }
-    const tipo = val > 0 ? 'receita' : 'despesa';
+    if (val === null || isNaN(val)) { ignorados++; return; }
+
+    // Motor de categorização
+    const resultado = categorizarTransacao(item.desc || '', val);
+
+    // null = ignorar este lançamento (ex: aplicação/resgate RDB interno)
+    if (resultado === null) { ignorados++; return; }
+
+    // val === 0 ignorar
+    if (val === 0) { ignorados++; return; }
+
     const dataISO = item.dataISO || new Date().toISOString().slice(0,10);
-    const [ano,mes,dia] = dataISO.split('-').map(Number);
+    const [ano, mes] = dataISO.split('-').map(Number);
+
     TX.push({
-      id: nextId++, tipo,
-      desc: item.desc || 'Importado',
-      cat:  tipo === 'receita' ? '💼 Salário' : '🎁 Outros',
-      mes:  mes - 1,
-      ano:  ano,
-      val:  val,
-      data: item.data || isoParaBR(dataISO),
+      id:       nextId++,
+      tipo:     resultado.tipo,
+      desc:     limparDescricao(item.desc || 'Importado'),
+      cat:      resultado.cat,
+      mes:      mes - 1,
+      ano:      ano,
+      val:      resultado.tipo === 'receita' ? Math.abs(val) : -Math.abs(val),
+      data:     item.data || isoParaBR(dataISO),
       dataISO,
       importado: true,
+      banco:    item.banco || 'Inter',
     });
     importados++;
   });
 
-  // Ordenar por data
   TX.sort((a,b) => (b.dataISO||'').localeCompare(a.dataISO||''));
   cancelarCSV();
   renderAll();
   if (btn) { btn.disabled = false; btn.textContent = '✅ Importar'; }
   const msg = ignorados > 0
-    ? `${importados} importados, ${ignorados} ignorados (valor zero).`
-    : `${importados} lançamentos importados com sucesso!`;
-  showToast(`✅ ${msg}`, 'success', 5000);
+    ? `${importados} lançamentos importados e categorizados! (${ignorados} ignorados — RDB/internos)`
+    : `${importados} lançamentos importados e categorizados!`;
+  showToast(`✅ ${msg}`, 'success', 6000);
 }
+
+/* Limpar e simplificar a descrição para exibição */
+function limparDescricao(desc) {
+  // Remover "Compra no débito - "
+  desc = desc.replace(/^Compra no d[eé]bito\s*-\s*/i, '');
+  // Remover "Transferência enviada pelo Pix - "
+  desc = desc.replace(/^Transfer[eê]ncia enviada pelo Pix\s*-\s*/i, '');
+  // Remover "Transferência recebida pelo Pix - "
+  desc = desc.replace(/^Transfer[eê]ncia recebida? pelo Pix\s*-\s*/i, '');
+  // Remover "Transferência Recebida - "
+  desc = desc.replace(/^Transfer[eê]ncia Recebida\s*-\s*/i, '');
+  // Remover dados bancários (tudo após " - •••" ou " - 00." ou " - BCO")
+  desc = desc.replace(/\s*-\s*[•\d]{3,}\..*$/i, '');
+  desc = desc.replace(/\s*-\s*BCO\s+.*/i, '');
+  desc = desc.replace(/\s*-\s*BANCO\s+.*/i, '');
+  desc = desc.replace(/\s*-\s*NU PAGAMENTOS.*/i, '');
+  desc = desc.replace(/\s*-\s*BANCO INTER.*/i, '');
+  desc = desc.replace(/\s*-\s*STONE IP.*/i, '');
+  desc = desc.replace(/\s*-\s*MERCADO PAGO IP.*/i, '');
+  desc = desc.replace(/\s*-\s*PAGSEGURO INTERNET.*/i, '');
+  desc = desc.replace(/\s*-\s*Agência:.*/i, '');
+  // Remover CNPJ / CPF
+  desc = desc.replace(/\s*-?\s*\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g, '');
+  desc = desc.replace(/\s*-?\s*•{3}\.\d{3}\.\d{3}-••/g, '');
+  // Capitalizar primeira letra
+  desc = desc.trim();
+  if (desc.length > 2) desc = desc.charAt(0).toUpperCase() + desc.slice(1).toLowerCase();
+  // Capitalizar nomes conhecidos
+  desc = desc.replace(/gabriel henrique dias silva/i, 'Gabriel Henrique Dias Silva');
+  desc = desc.replace(/samuel david dias silva/i, 'Samuel David Dias Silva');
+  desc = desc.replace(/conect cell/i, 'Conect Cell');
+  desc = desc.replace(/igreja assembleia de deus petra/i, 'Igreja Assembleia de Deus Petra');
+  desc = desc.replace(/igreja assembleia de deus missoes/i, 'Igreja Assembleia de Deus Missões');
+  // Limitar tamanho
+  if (desc.length > 60) desc = desc.slice(0, 57) + '...';
+  return desc || 'Lançamento importado';
+}
+
 
 /* ═══════════════════════════════════════════════════
    EXPORTAR PDF COMPLETO
@@ -5984,7 +6140,7 @@ function exportarPDF() {
 
   const txMes   = TX.filter(t=>t.mes===m&&(t.ano||ano)===ano);
   const receitas = txMes.filter(t=>t.tipo==='receita');
-  const despesas = txMes.filter(t=>t.tipo==='despesa'&&!isCartaoPendente(t));
+  const despesas = txMes.filter(t=>t.tipo==='despesa'&&!isCartaoItem(t));
   const investimentos = txMes.filter(t=>t.tipo==='investimento');
   const cartaoPend = TX.filter(t=>t.cartao&&!t.fatPaga);
   const totalRec  = receitas.reduce((s,t)=>s+t.val,0);
