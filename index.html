@@ -3078,8 +3078,15 @@ function byMonth(tipo) {
 function catTotals(mes) {
   const c = {'🏠 Moradia':0,'🍽️ Aliment.':0,'🚗 Transporte':0,
              '💊 Saúde':0,'📚 Educação':0,'🎭 Lazer':0,'🙏 Dízimo':0,'🆘 Outros':0};
-  // Excluir itens de cartão — só pagFatura entra como despesa real
-  TX.filter(t => t.tipo === 'despesa' && !isCartaoItem(t) && (mes === undefined || mes === 'all' || t.mes === mes)).forEach(t => {
+  TX.filter(t => {
+    if (t.tipo !== 'despesa') return false;
+    if (mes !== undefined && mes !== 'all' && t.mes !== mes) return false;
+    // Excluir pagamento de fatura (evita dupla contagem no gráfico)
+    if (t.pagFatura) return false;
+    return true;
+    // Itens de cartão SÃO incluídos — para análise de categoria
+    // O saldo é calculado separadamente via kpis() que usa isCartaoItem()
+  }).forEach(t => {
     const k = {
       '🏠 Moradia':'🏠 Moradia','🍽️ Alimentação':'🍽️ Aliment.',
       '🚗 Transporte':'🚗 Transporte','💊 Saúde':'💊 Saúde',
@@ -3980,7 +3987,7 @@ function renderOrcamento() {
   if (!el) return;
   const mes = new Date().getMonth();
   const gastos = {};
-  TX.filter(t=>t.tipo==='despesa'&&t.mes===mes&&!t.cartao).forEach(t=>{
+  TX.filter(t=>t.tipo==='despesa'&&t.mes===mes&&!t.pagFatura).forEach(t=>{
     const k = {
       '🏠 Moradia':'🏠 Moradia','🍽️ Alimentação':'🍽️ Alimentação',
       '🚗 Transporte':'🚗 Transporte','💊 Saúde':'💊 Saúde',
@@ -6286,7 +6293,7 @@ function renderOrcCards() {
   const ano = new Date().getFullYear();
   const fmt = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
   const gastos = {};
-  TX.filter(t=>t.tipo==='despesa'&&t.mes===mes&&(t.ano||ano)===ano&&!t.cartao).forEach(t=>{
+  TX.filter(t=>t.tipo==='despesa'&&t.mes===mes&&(t.ano||ano)===ano&&!t.pagFatura).forEach(t=>{
     const k = ORC_CATS_FIN.find(c=>c===t.cat)||null;
     if (k) gastos[k]=(gastos[k]||0)+Math.abs(t.val);
   });
