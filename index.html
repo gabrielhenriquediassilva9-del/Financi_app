@@ -266,6 +266,12 @@ body {
   transition:filter .3s;
 }
 .hero-balance-value.blurred { filter:blur(8px); user-select:none; }
+/* Nubank dentro do hero — escala relativa ao 32px do pai */
+.hero-balance-value .nu-val { gap:3px; }
+.hero-balance-value .nu-currency { font-size:.42em; opacity:.9; }
+.hero-balance-value .nu-integer  { font-size:1em; letter-spacing:-1px; }
+.hero-balance-value .nu-sep,
+.hero-balance-value .nu-cents    { font-size:.52em; }
 .hero-balance-sub {
   font-size:12px; color:var(--hero-sub); margin-top:4px;
 }
@@ -285,6 +291,9 @@ body {
 .hero-strip-label { font-size:10px; color:var(--hero-sub); font-weight:500; margin-bottom:3px; }
 .hero-strip-value { font-size:13px; font-weight:700; color:#fff; font-family:-apple-system,sans-serif; }
 .hero-strip-value.blurred { filter:blur(6px); }
+.hero-strip-value .nu-val { gap:1px; }
+.hero-strip-value .nu-currency { font-size:.55em; opacity:.85; }
+.hero-strip-value .nu-integer  { font-size:1em; letter-spacing:-.5px; }
 
 /* ── Quick actions ── */
 .quick-actions {
@@ -323,6 +332,15 @@ body {
 .card-glow-gold::before  { content:''; position:absolute; top:-40px; right:-40px; width:110px; height:110px; background:radial-gradient(circle,rgba(232,148,10,.15) 0%,transparent 70%); pointer-events:none; }
 .card-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
 .card-value { font-family:-apple-system,'SF Pro Display',sans-serif; font-size:22px; font-weight:700; color:var(--text); line-height:1.1; margin-bottom:6px; }
+
+/* ── Estilo Nubank: R$ menor + centavos menores ── */
+.nu-val { display:inline-flex; align-items:baseline; gap:2px; line-height:1; }
+.nu-val .nu-currency { font-size:.5em; font-weight:700; opacity:.85; margin-right:1px; letter-spacing:0; }
+.nu-val .nu-integer  { font-size:1em; font-weight:800; letter-spacing:-.01em; }
+.nu-val .nu-sep      { font-size:.55em; font-weight:700; opacity:.8; }
+.nu-val .nu-cents    { font-size:.55em; font-weight:700; opacity:.8; }
+.nu-val .nu-sign     { font-size:.7em; font-weight:800; margin-right:1px; }
+
 .card-sub   { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; }
 
 /* ═══════════════════════════════════════════════════
@@ -594,10 +612,142 @@ td.negative { color:var(--red);   font-weight:600; }
 /* ── Alerta fatura ── */
 #dash-alerta-fatura { display:none; background:var(--red-dim); border:1px solid rgba(232,51,74,0.3); border-radius:12px; padding:12px 16px; margin:0 16px 14px; font-size:13px; color:var(--red); cursor:pointer; align-items:center; gap:10px; }
 
+/* ═══════════════════════════════════════════════════
+   CAIXINHAS
+═══════════════════════════════════════════════════ */
+.caixinhas-row {
+  display:flex; gap:10px; overflow-x:auto; padding:0 16px 4px;
+  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.caixinhas-row::-webkit-scrollbar { display:none; }
+
+.caixa-card {
+  flex:0 0 auto; width:148px; border-radius:18px;
+  padding:14px 14px 12px; position:relative; overflow:hidden;
+  scroll-snap-align:start; cursor:pointer;
+  transition:transform .15s, box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);
+}
+.caixa-card:active { transform:scale(.95); }
+
+.caixa-emoji { font-size:22px; line-height:1; margin-bottom:8px; }
+.caixa-nome  { font-size:11px; font-weight:600; opacity:.85; margin-bottom:4px;
+               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.caixa-valor { font-size:18px; font-weight:800; line-height:1.1;
+               font-family:-apple-system,'SF Pro Display',sans-serif; }
+.caixa-valor .nu-currency { font-size:.46em; opacity:.8; }
+.caixa-valor .nu-integer  { font-size:1em; letter-spacing:-.5px; }
+.caixa-valor .nu-sep,
+.caixa-valor .nu-cents    { font-size:.5em; opacity:.8; }
+
+.caixa-pct-bar {
+  position:absolute; bottom:0; left:0; right:0; height:3px;
+  background:rgba(255,255,255,.18);
+}
+.caixa-pct-fill {
+  height:100%; background:rgba(255,255,255,.6); border-radius:0 2px 2px 0;
+  transition:width .4s ease;
+}
+
+/* Botão Nova Caixinha */
+.caixa-add-btn {
+  flex:0 0 auto; width:100px; border-radius:18px; border:2px dashed var(--border2);
+  background:var(--surface2); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px;
+  cursor:pointer; font-size:22px; color:var(--muted);
+  transition:background .15s, border-color .15s;
+  -webkit-tap-highlight-color:transparent; min-height:112px;
+}
+.caixa-add-btn:active { background:var(--surface3); }
+.caixa-add-label { font-size:10px; font-weight:600; color:var(--muted); }
+
+/* Tela Caixinhas */
+#screen-caixinhas .cx-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 16px 0;
+}
+.cx-total-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:16px;
+  padding:16px; margin:12px 16px 0; display:flex; align-items:center; gap:14px;
+}
+.cx-total-icon { font-size:28px; }
+.cx-total-label { font-size:11px; color:var(--muted); font-weight:500; margin-bottom:2px; }
+.cx-total-val   { font-size:24px; font-weight:800; color:var(--green);
+                  font-family:-apple-system,'SF Pro Display',sans-serif; }
+.cx-total-val .nu-currency { font-size:.44em; }
+.cx-total-val .nu-integer  { font-size:1em; }
+.cx-total-val .nu-sep,
+.cx-total-val .nu-cents    { font-size:.5em; }
+
+.cx-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  padding:14px 16px;
+}
+.cx-item {
+  border-radius:18px; padding:16px 14px 14px; position:relative;
+  overflow:hidden; cursor:pointer;
+  transition:transform .15s; -webkit-tap-highlight-color:transparent;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);
+}
+.cx-item:active { transform:scale(.96); }
+.cx-item-emoji { font-size:24px; margin-bottom:8px; }
+.cx-item-nome  { font-size:12px; font-weight:600; opacity:.85; margin-bottom:6px;
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cx-item-valor { font-size:22px; font-weight:800; line-height:1;
+                 font-family:-apple-system,'SF Pro Display',sans-serif; }
+.cx-item-valor .nu-currency { font-size:.44em; opacity:.82; }
+.cx-item-valor .nu-integer  { font-size:1em; letter-spacing:-.5px; }
+.cx-item-valor .nu-sep,
+.cx-item-valor .nu-cents    { font-size:.5em; }
+.cx-item-actions {
+  position:absolute; top:10px; right:10px;
+  display:flex; gap:4px; opacity:.7;
+}
+.cx-item-btn {
+  width:24px; height:24px; border-radius:50%; border:none;
+  background:rgba(255,255,255,.2); color:#fff; font-size:11px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.cx-add-card {
+  border-radius:18px; border:2px dashed var(--border2);
+  background:var(--surface2); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:6px;
+  cursor:pointer; font-size:26px; color:var(--muted);
+  min-height:130px; transition:background .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.cx-add-card:active { background:var(--surface3); }
+.cx-add-card-label { font-size:11px; font-weight:600; color:var(--muted); }
+
+/* Modal Caixinha */
+#modal-caixa .emoji-picker {
+  display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px;
+}
+#modal-caixa .emoji-opt {
+  font-size:22px; text-align:center; padding:6px; border-radius:10px;
+  cursor:pointer; border:2px solid transparent; transition:border-color .12s, background .12s;
+  -webkit-tap-highlight-color:transparent;
+}
+#modal-caixa .emoji-opt.selected { border-color:var(--green); background:var(--green-dim); }
+#modal-caixa .cor-picker {
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;
+}
+#modal-caixa .cor-opt {
+  width:30px; height:30px; border-radius:50%; cursor:pointer;
+  border:3px solid transparent; transition:border-color .12s, transform .1s;
+}
+#modal-caixa .cor-opt.selected { border-color:#fff; transform:scale(1.15); }
+
 /* ── Ocultar valores ── */
 .hide-values .card-value,
+.hide-values .card-value .nu-val,
 .hide-values .hero-balance-value,
+.hide-values .hero-balance-value .nu-val,
 .hide-values .hero-strip-value,
+.hide-values .hero-strip-value .nu-val,
 .hide-values .sum-val,
 .hide-values td.positive,
 .hide-values td.negative,
@@ -1560,6 +1710,7 @@ td.negative { color:var(--red);   font-weight:600; }
     <div class="mob-drawer-item" onclick="closeDrawer();openOrcModal()"><div>📊</div><span>Orçamento</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('financeiro')"><div>💰</div><span>Financeiro</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('reserva')"><div>🛡️</div><span>Reserva</span></div>
+    <div class="mob-drawer-item" onclick="mobGoTo('caixinhas')"><div>📦</div><span>Caixinhas</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('comparativo')"><div>↔️</div><span>Comparar</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('projecao')"><div>📉</div><span>Projeção</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('simulador')"><div>🧮</div><span>Simulador</span></div>
@@ -1702,6 +1853,7 @@ td.negative { color:var(--red);   font-weight:600; }
   <button class="nav-item" onclick="goTo('investimentos',this)"><span>◈</span><span class="tooltip">Investimentos</span></button>
   <button class="nav-item" onclick="goTo('metas',this)"><span>◎</span><span class="tooltip">Metas</span></button>
   <button class="nav-item" onclick="goTo('patrimonio',this)"><span>▦</span><span class="tooltip">Patrimônio</span></button>
+  <button class="nav-item" onclick="goTo('caixinhas',this)"><span>📦</span><span class="tooltip">Caixinhas</span></button>
   <button class="nav-item" onclick="goTo('cartao',this)"><span>💳</span><span class="tooltip">Cartão de Crédito</span></button>
   <button class="nav-item" onclick="goTo('planejamento',this)"><span>🔮</span><span class="tooltip">Planejamento</span></button>
   <div class="sidebar-bottom">
@@ -1797,6 +1949,21 @@ td.negative { color:var(--red);   font-weight:600; }
         </div>
       </div>
 
+      <!-- ══ CAIXINHAS (widget dashboard) ══ -->
+      <div style="padding:14px 0 0">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">📦 Caixinhas</div>
+          <button onclick="mobGoTo('caixinhas')" style="font-size:11px;font-weight:600;color:var(--green);background:none;border:none;cursor:pointer;padding:0">Ver todas →</button>
+        </div>
+        <div class="caixinhas-row" id="dash-caixinhas-row">
+          <!-- gerado por renderCaixinhas() -->
+          <div class="caixa-add-btn" onclick="openModalCaixa()">
+            <span>＋</span>
+            <span class="caixa-add-label">Nova</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ AÇÕES RÁPIDAS ══ -->
       <div class="quick-actions">
         <div class="qa-btn" onclick="openQA()">
@@ -1863,6 +2030,11 @@ td.negative { color:var(--red);   font-weight:600; }
         <div class="chart-box">
           <canvas id="chartBarDash" height="160"></canvas>
         </div>
+
+      <div style="padding:0 16px;margin-top:12px">
+        <div class="section-title">Saldo Acumulado</div>
+        <div class="chart-box"><canvas id="chartLineDash" height="140"></canvas></div>
+      </div>
       </div>
 
       <div style="padding:0 16px;margin-top:12px">
@@ -2434,6 +2606,45 @@ td.negative { color:var(--red);   font-weight:600; }
       </div>
     </div>
 
+    <!-- ══ TELA: CAIXINHAS ══ -->
+    <div id="screen-caixinhas" class="screen">
+      <div class="cx-header">
+        <div style="font-size:16px;font-weight:700;color:var(--text)">📦 Caixinhas</div>
+        <button onclick="openModalCaixa()" style="display:flex;align-items:center;gap:5px;background:var(--green);border:none;border-radius:11px;color:#fff;font-size:12px;font-weight:700;padding:8px 13px;cursor:pointer;box-shadow:0 3px 10px rgba(0,178,116,.35)">＋ Nova</button>
+      </div>
+
+      <!-- Resumo total -->
+      <div class="cx-total-box" id="cx-total-box">
+        <div class="cx-total-icon">🗂️</div>
+        <div>
+          <div class="cx-total-label">Total reservado nas caixinhas</div>
+          <div class="cx-total-val" id="cx-total-val">R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- Saldo disponível (descontando caixinhas) -->
+      <div style="margin:10px 16px 0;background:var(--green-dim);border:1px solid rgba(0,178,116,.25);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:22px">💰</span>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-weight:500;margin-bottom:2px">Saldo livre (sem caixinhas)</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green);font-family:-apple-system,sans-serif" id="cx-saldo-livre">R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- Grid de caixinhas -->
+      <div class="cx-grid" id="cx-grid">
+        <!-- gerado por renderCaixinhas() -->
+      </div>
+
+      <!-- Empty state -->
+      <div id="cx-empty" style="text-align:center;padding:40px 24px;display:none">
+        <div style="font-size:48px;margin-bottom:12px">📦</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Nenhuma caixinha ainda</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Separe parte do seu saldo para objetivos específicos</div>
+        <button onclick="openModalCaixa()" style="background:var(--green);border:none;border-radius:14px;color:#fff;font-size:14px;font-weight:700;padding:13px 24px;cursor:pointer">＋ Criar primeira caixinha</button>
+      </div>
+    </div>
+
     <!-- ══ TELA: COMPARATIVO MÊS A MÊS ══ -->
     <div id="screen-comparativo" class="screen">
       <div style="padding:16px">
@@ -2607,6 +2818,22 @@ td.negative { color:var(--red);   font-weight:600; }
       </div>
     </div>
 
+
+    <!-- ══ TELA: PLANEJAMENTO ══ -->
+    <div id="screen-planejamento" class="screen">
+      <div style="padding:16px">
+        <div class="section-title" style="margin-top:0">🔄 Lançamentos Recorrentes</div>
+        <div class="card" style="padding:0 16px">
+          <div id="rec-list"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">
+            Nenhum lançamento recorrente.<br>Marque "🔁 Recorrente" ao adicionar.
+          </div></div>
+        </div>
+        <div class="section-title">📉 Projeção dos próximos 6 meses</div>
+        <div class="chart-box">
+          <canvas id="chartProjecaoLeg" height="200"></canvas>
+        </div>
+      </div>
+    </div>
     <!-- ══ TELA: HISTÓRICO MÊS A MÊS ══ -->
     <div id="screen-historico" class="screen">
       <div style="padding:16px 16px 0">
@@ -3059,6 +3286,8 @@ let PATRIMONIO_MANUAL = {
 };
 let _simPendente = null; // simulação aguardando confirmação
 let RESERVA_EMERGENCIA = { meta: 0, acumulado: 0 }; // fundo de emergência
+let CAIXINHAS = [];        // [{id, nome, emoji, valor, cor}]
+let _caixNextId = 1;
 let TAGS_CUSTOM = [];      // [{id, nome, cor, icone}] — tags personalizadas
 let RECORRENTES_CONFIG = []; // [{id, desc, cat, val, tipo, dia, tag}]
 let _tagNextId = 1;
@@ -3132,7 +3361,8 @@ function kpis() {
   const totalRec  = TX.filter(t=>t.tipo==='receita').reduce((s,t)=>s+t.val,0);
   const totalDesp = TX.filter(t=>t.tipo==='despesa' && !isCartaoItem(t)).reduce((s,t)=>s+Math.abs(t.val),0);
   const totalInv  = TX.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+Math.abs(t.val),0);
-  const saldoCarteira = totalRec - totalDesp - totalInv;
+  const totalCaixinhas = CAIXINHAS.reduce((s,c)=>s+c.valor,0);
+  const saldoCarteira = totalRec - totalDesp - totalInv - totalCaixinhas;
   // Patrimônio manual
   const totAtivos   = PATRIMONIO_MANUAL.ativos.reduce((s,a)=>s+a.val,0);
   const totPassivos = PATRIMONIO_MANUAL.passivos.reduce((s,p)=>s+p.val,0);
@@ -3207,6 +3437,7 @@ function renderAll() {
   popularAnosSelect();
   renderTxList('txList', TX.slice(0,8));
   renderTxFiltrado();
+  renderCaixinhas();
   document.getElementById('txCount').textContent = TX.length + ' registros';
 }
 
@@ -3214,26 +3445,32 @@ function renderAll() {
 function renderKPIs() {
   const k = kpis();
   const fmt = v => 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const nu  = v => fmtNubank(v);
+  const nuStrip = v => fmtNubank(v, {cents:false});
   const rs = recSources();
   const ct = catTotals();
   const totalDesp = Object.values(ct).reduce((s,v)=>s+v,0);
   const totalInv  = k.totalInv;
 
   /* Dashboard hero */
-  setEl('kpi-rec',    fmt(k.recM));
-  setEl('kpi-desp',   fmt(k.despM));
-  setEl('kpi-saldo',  fmt(k.saldoCarteira));   // ← saldo acumulado da carteira
-  setEl('kpi-pat',    fmt(Math.max(0,k.patrimonioLiq)));
+  setElH('kpi-rec',    nuStrip(k.recM));
+  setElH('kpi-desp',   nuStrip(k.despM));
+  setElH('kpi-saldo',  fmtNubank(k.saldoCarteira));   // ← saldo acumulado da carteira
+  setElH('kpi-pat',    nu(Math.max(0,k.patrimonioLiq)));
   setEl('kpi-pct',    k.pct+'%');
-  setEl('kpi-inv-strip', fmt(k.invM));
-  setEl('kpi-saldo-carteira', fmt(k.saldoCarteira));
+  setElH('kpi-inv-strip', nuStrip(k.invM));
+  setElH('kpi-saldo-carteira', fmtNubank(k.saldoCarteira));
   // Sub-texto do hero
   const poupSub = document.getElementById('hero-poupanca-sub');
   if (poupSub) {
     const cor = k.saldoCarteira >= 0 ? 'rgba(255,255,255,0.8)' : '#ffaaaa';
     poupSub.style.color = cor;
+    const temCaix = CAIXINHAS.length > 0;
+    const labelDisp = temCaix
+      ? `livre · ${CAIXINHAS.length} caixinha${CAIXINHAS.length>1?'s':''} separada${CAIXINHAS.length>1?'s':''}`
+      : 'saldo acumulado disponível';
     poupSub.textContent = k.saldoCarteira >= 0
-      ? 'saldo acumulado disponível'
+      ? labelDisp
       : '⚠️ saldo negativo — atenção!';
   }
   // Mês/ano no hero
@@ -3242,37 +3479,37 @@ function renderKPIs() {
   if (mesLabel) mesLabel.textContent = MESES_HERO[new Date().getMonth()] + '/' + new Date().getFullYear();
 
   /* Receitas */
-  setEl('kpi-sal',    fmt(rs.sal.reduce((s,v)=>s+v,0)));
-  setEl('kpi-fre',    fmt(rs.fre.reduce((s,v)=>s+v,0)));
-  setEl('kpi-out',    fmt(rs.out.reduce((s,v)=>s+v,0)));
+  setElH('kpi-sal',    nu(rs.sal.reduce((s,v)=>s+v,0)));
+  setElH('kpi-fre',    nu(rs.fre.reduce((s,v)=>s+v,0)));
+  setElH('kpi-out',    nu(rs.out.reduce((s,v)=>s+v,0)));
 
   /* Despesas top-4 + Dízimo + Cartão */
   const tops = [ct['🏠 Moradia'],ct['🍽️ Aliment.'],ct['🚗 Transporte'],ct['🎭 Lazer']];
   tops.forEach((v,i) => {
-    setEl('kpi-d'+i, fmt(v));
+    setElH('kpi-d'+i, nu(v));
     setEl('kpi-ds'+i, totalDesp>0 ? (v/totalDesp*100).toFixed(1)+'% do total' : '— do total');
   });
   const dizimo = ct['🙏 Dízimo']||0;
-  setEl('kpi-d4', fmt(dizimo));
+  setElH('kpi-d4', nu(dizimo));
   setEl('kpi-ds4', totalDesp>0 ? (dizimo/totalDesp*100).toFixed(1)+'% do total' : '— do total');
   const totalCartao = TX.filter(t=>t.tipo==='despesa'&&t.cartao).reduce((s,t)=>s+Math.abs(t.val),0);
-  setEl('kpi-d5', fmt(totalCartao));
+  setElH('kpi-d5', nu(totalCartao));
   setEl('kpi-ds5', totalDesp>0 ? (totalCartao/totalDesp*100).toFixed(1)+'% do total' : '— do total');
 
   /* Investimentos */
-  setEl('kpi-inv0', fmt(totalInv));
-  setEl('kpi-inv1', fmt(totalInv));
+  setElH('kpi-inv0', nu(totalInv));
+  setElH('kpi-inv1', nu(totalInv));
 
   /* Patrimônio — usa dados manuais */
-  setEl('kpi-pat-at',  fmt(k.totAtivos));
-  setEl('kpi-pat-pas', fmt(k.totPassivos));
-  setEl('kpi-pat-liq', fmt(k.patrimonioLiq));
+  setElH('kpi-pat-at',  nu(k.totAtivos));
+  setElH('kpi-pat-pas', nu(k.totPassivos));
+  setElH('kpi-pat-liq', nu(k.patrimonioLiq));
 
   /* Saldo na carteira — exibido na tela de patrimônio */
-  setEl('kpi-saldo-carteira', fmt(k.saldoCarteira));
+  setElH('kpi-saldo-carteira', fmtNubank(k.saldoCarteira));
 
   /* Metas poupado */
-  setEl('kpi-meta-poup', fmt(Math.max(0,k.saldoCarteira)));
+  setElH('kpi-meta-poup', nu(Math.max(0,k.saldoCarteira)));
 
   /* Meta de economia mensal */
   const saldoM = k.saldoM;
@@ -3295,6 +3532,10 @@ function renderKPIs() {
 function setEl(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
+}
+function setElH(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
 }
 
 /* ── Dashboard ─────────────────────────────── */
@@ -3617,7 +3858,7 @@ function renderPatrimonio() {
     : '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:12px;font-size:12px">Nenhum passivo cadastrado</td></tr>';
 
   // Saldo da carteira
-  setEl('kpi-saldo-carteira', fmt(k.saldoCarteira));
+  setElH('kpi-saldo-carteira', fmtNubank(k.saldoCarteira));
 }
 
 /* ── Adicionar item ao patrimônio ── */
@@ -3682,7 +3923,8 @@ const PAGE_TITLES = {
   investimentos:'Investimentos', metas:'Metas', patrimonio:'Patrimônio',
   lancamento:'Lançamento', cartao:'💳 Cartão', planejamento:'🔮 Planejamento',
   dados:'📂 Dados', historico:'📊 Histórico',
-  financeiro:'💰 Financeiro', reserva:'🛡️ Reserva', comparativo:'📊 Comparativo', projecao:'📉 Projeção', simulador:'🧮 Simulador'
+  financeiro:'💰 Financeiro', reserva:'🛡️ Reserva', comparativo:'📊 Comparativo', projecao:'📉 Projeção', simulador:'🧮 Simulador',
+  caixinhas:'📦 Caixinhas'
 };
 function goTo(screen, el, forceDir=null) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -4032,62 +4274,7 @@ function salvarMetaEco() {
 /* ═══════════════════════════════════════════════
    SIMULADOR DE IMPACTO
 ═══════════════════════════════════════════════ */
-function simularImpacto() {
-  const tipo  = document.getElementById('sim-tipo').value;
-  const desc  = document.getElementById('sim-desc').value.trim();
-  const valor = parseFloat(document.getElementById('sim-valor').value);
-  if (!desc || !valor || isNaN(valor) || valor<=0) { showToast('Preencha descrição e valor.','warn'); return; }
 
-  const fmt = v=>'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  const k   = kpis();
-  const saldoAtual  = k.saldoM;
-  const impacto     = tipo==='receita' ? valor : -valor;
-  const saldoNovo   = saldoAtual + impacto;
-  const recM        = k.recM + (tipo==='receita' ? valor : 0);
-  const pctNovo     = recM>0 ? ((saldoNovo)/recM*100).toFixed(1) : '—';
-
-  document.getElementById('sim-r-atual').textContent = fmt(saldoAtual);
-  document.getElementById('sim-r-atual').style.color = saldoAtual>=0?'var(--green)':'var(--red)';
-  document.getElementById('sim-r-novo').textContent  = fmt(saldoNovo);
-  document.getElementById('sim-r-novo').style.color  = saldoNovo>=0?'var(--green)':'var(--red)';
-  document.getElementById('sim-r-diff').textContent  = (impacto>=0?'+':'')+fmt(impacto);
-  document.getElementById('sim-r-diff').style.color  = impacto>=0?'var(--green)':'var(--red)';
-  document.getElementById('sim-r-pct').textContent   = pctNovo!=='—' ? pctNovo+'%' : '—';
-
-  const aviso = document.getElementById('sim-r-aviso');
-  if (aviso) {
-    if (saldoNovo < 0) {
-      aviso.style.display='block';aviso.style.background='var(--red-dim)';aviso.style.color='var(--red)';
-      aviso.textContent='⚠️ Este gasto deixaria seu saldo negativo!';
-    } else if (META_ECO>0 && saldoNovo < META_ECO) {
-      aviso.style.display='block';aviso.style.background='var(--gold-dim)';aviso.style.color='var(--gold)';
-      aviso.textContent=`⚠️ Com este gasto você não atingiria sua meta de economia de R$ ${META_ECO.toLocaleString('pt-BR',{minimumFractionDigits:2})}.`;
-    } else {
-      aviso.style.display='none';
-    }
-  }
-
-  _simPendente = { tipo, desc, valor };
-  document.getElementById('sim-resultado').style.display='block';
-}
-
-function confirmarSimulacao() {
-  if (!_simPendente) return;
-  const { tipo, desc, valor } = _simPendente;
-  const date = new Date();
-  TX.unshift({
-    id:nextId++, tipo, desc, cat:'🎁 Outros',
-    mes:date.getMonth(),
-    val: tipo==='receita' ? valor : -Math.abs(valor),
-    data: date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),
-  });
-  _simPendente = null;
-  document.getElementById('sim-resultado').style.display='none';
-  document.getElementById('sim-desc').value='';
-  document.getElementById('sim-valor').value='';
-  renderAll();
-  showToast('Lançamento adicionado!','success');
-}
 
 /* ═══════════════════════════════════════════════
    PLANEJAMENTO — RECORRENTES + PROJEÇÃO
@@ -4134,7 +4321,7 @@ function renderPlanejamento() {
     dados.push(parseFloat(acum.toFixed(2)));
   }
 
-  mkChart('chartProjecao',{
+  mkChart(document.getElementById('chartProjecao')?'chartProjecao':'chartProjecaoLeg',{
     type:'line',
     data:{ labels, datasets:[{
       label:'Saldo projetado',
@@ -4273,6 +4460,28 @@ function fmtR(v) {
   return 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+/**
+ * fmtNubank(v, opts)
+ * Retorna HTML com estilo tipográfico Nubank:
+ *   R$  pequeno + inteiro grande + ,centavos pequenos
+ * opts.sign  = true  → exibe + ou − na frente
+ * opts.cents = false → omite centavos (ex.: strip hero)
+ */
+function fmtNubank(v, opts) {
+  opts = opts || {};
+  const neg  = v < 0;
+  const abs  = Math.abs(v);
+  const str  = abs.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const parts= str.split(',');
+  const intPart  = parts[0];
+  const centPart = parts[1] || '00';
+  const sign = opts.sign ? (neg ? '<span class="nu-sign">−</span>' : '<span class="nu-sign">+</span>') : '';
+  const centsHtml = opts.cents === false
+    ? ''
+    : `<span class="nu-sep">,</span><span class="nu-cents">${centPart}</span>`;
+  return `<span class="nu-val">${sign}<span class="nu-currency">R$</span><span class="nu-integer">${intPart}</span>${centsHtml}</span>`;
+}
+
 function renderCartaoScreen() {
   const fmt = fmtR;
 
@@ -4285,9 +4494,9 @@ function renderCartaoScreen() {
 
   // KPIs
   const elAberta = document.getElementById('cc-fatura-aberta');
-  if (elAberta) elAberta.textContent = fmt(totalAberto);
+  if (elAberta) elAberta.innerHTML = fmtNubank(totalAberto);
   const elPago = document.getElementById('cc-total-pago');
-  if (elPago) elPago.textContent = fmt(totalPago);
+  if (elPago) elPago.innerHTML = fmtNubank(totalPago);
 
   // Aviso de vencimento — usa ciclo do cartão selecionado ou padrão
   const filtroAviso = (document.getElementById('cc-filtro-cartao')?.value) || '';
@@ -4670,6 +4879,150 @@ function openDB() {
   });
 }
 
+/* ═══════════════════════════════════════════════
+   CAIXINHAS — lógica completa
+═══════════════════════════════════════════════ */
+const CAIX_EMOJIS = ['📦','🎯','✈️','🏠','🚗','📱','💻','👗','🎮','🎵','📚','🏋️','🍕','☕','🐶','💍','🏖️','🎁','💊','🛍️','🔧','⚽','🎨','🌱'];
+const CAIX_CORES  = ['#00b274','#1a6fdb','#e8940a','#e8334a','#7c4dff','#00c98d','#ff6b6b','#4ecdc4','#f7b731','#a29bfe','#fd79a8','#55efc4'];
+
+function totalCaixinhasVal() {
+  return CAIXINHAS.reduce((s,c)=>s+c.valor,0);
+}
+
+function renderCaixinhas() {
+  // Widget do dashboard
+  const dashRow = document.getElementById('dash-caixinhas-row');
+  if (dashRow) {
+    const cards = CAIXINHAS.map(c => {
+      const saldoBruto = kpisRaw().saldoCarteiraSemCaix;
+      const pct = saldoBruto > 0 ? Math.min(c.valor / saldoBruto * 100, 100) : 0;
+      return `<div class="caixa-card" style="background:${c.cor}" onclick="mobGoTo('caixinhas')">
+        <div class="caixa-emoji">${c.emoji}</div>
+        <div class="caixa-nome" style="color:#fff">${c.nome}</div>
+        <div class="caixa-valor" style="color:#fff">${fmtNubank(c.valor)}</div>
+        <div class="caixa-pct-bar"><div class="caixa-pct-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>`;
+    }).join('');
+    dashRow.innerHTML = cards + `<div class="caixa-add-btn" onclick="openModalCaixa()"><span>＋</span><span class="caixa-add-label">Nova</span></div>`;
+  }
+
+  // Tela de caixinhas
+  const grid  = document.getElementById('cx-grid');
+  const empty = document.getElementById('cx-empty');
+  const totalEl = document.getElementById('cx-total-val');
+  const livreEl = document.getElementById('cx-saldo-livre');
+
+  const total = totalCaixinhasVal();
+  const saldoLivre = kpis().saldoCarteira; // já descontado
+
+  if (totalEl) totalEl.innerHTML = fmtNubank(total);
+  if (livreEl) livreEl.innerHTML = fmtNubank(Math.max(0, saldoLivre));
+
+  if (!grid) return;
+  if (!CAIXINHAS.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  grid.innerHTML = CAIXINHAS.map(c => `
+    <div class="cx-item" style="background:${c.cor}" onclick="editarCaixa(${c.id})">
+      <div class="cx-item-actions">
+        <button class="cx-item-btn" onclick="event.stopPropagation();editarCaixa(${c.id})" title="Editar">✏️</button>
+        <button class="cx-item-btn" onclick="event.stopPropagation();deletarCaixa(${c.id})" title="Excluir">✕</button>
+      </div>
+      <div class="cx-item-emoji">${c.emoji}</div>
+      <div class="cx-item-nome" style="color:#fff">${c.nome}</div>
+      <div class="cx-item-valor" style="color:#fff">${fmtNubank(c.valor)}</div>
+    </div>
+  `).join('') + `<div class="cx-add-card" onclick="openModalCaixa()"><span>＋</span><span class="cx-add-card-label">Nova caixinha</span></div>`;
+}
+
+/* Retorna saldoCarteira SEM descontar caixinhas (para % no dashboard) */
+function kpisRaw() {
+  const totalRec  = TX.filter(t=>t.tipo==='receita').reduce((s,t)=>s+t.val,0);
+  const totalDesp = TX.filter(t=>t.tipo==='despesa' && !isCartaoItem(t)).reduce((s,t)=>s+Math.abs(t.val),0);
+  const totalInv  = TX.filter(t=>t.tipo==='investimento').reduce((s,t)=>s+Math.abs(t.val),0);
+  return { saldoCarteiraSemCaix: totalRec - totalDesp - totalInv };
+}
+
+function openModalCaixa(id) {
+  // Popula emojis
+  const ep = document.getElementById('caixa-emoji-picker');
+  if (ep) ep.innerHTML = CAIX_EMOJIS.map(e=>`<div class="emoji-opt" onclick="selectCaixaEmoji('${e}')" data-emoji="${e}">${e}</div>`).join('');
+
+  // Popula cores
+  const cp = document.getElementById('caixa-cor-picker');
+  if (cp) cp.innerHTML = CAIX_CORES.map(c=>`<div class="cor-opt" onclick="selectCaixaCor('${c}')" data-cor="${c}" style="background:${c}"></div>`).join('');
+
+  const editId = document.getElementById('caixa-edit-id');
+  const title  = document.getElementById('modal-caixa-title');
+
+  if (id) {
+    const c = CAIXINHAS.find(x=>x.id===id);
+    if (!c) return;
+    editId.value = id;
+    document.getElementById('caixa-nome').value  = c.nome;
+    document.getElementById('caixa-valor').value = c.valor;
+    selectCaixaEmoji(c.emoji);
+    selectCaixaCor(c.cor);
+    if (title) title.textContent = '✏️ Editar Caixinha';
+  } else {
+    editId.value = '';
+    document.getElementById('caixa-nome').value  = '';
+    document.getElementById('caixa-valor').value = '';
+    selectCaixaEmoji('📦');
+    selectCaixaCor('#00b274');
+    if (title) title.textContent = '📦 Nova Caixinha';
+  }
+  openModal('modal-caixa');
+}
+
+function editarCaixa(id) { openModalCaixa(id); }
+
+function selectCaixaEmoji(e) {
+  document.getElementById('caixa-emoji-sel').value = e;
+  document.querySelectorAll('#caixa-emoji-picker .emoji-opt').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.emoji===e);
+  });
+}
+function selectCaixaCor(c) {
+  document.getElementById('caixa-cor-sel').value = c;
+  document.querySelectorAll('#caixa-cor-picker .cor-opt').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.cor===c);
+  });
+}
+
+function salvarCaixa() {
+  const nome  = document.getElementById('caixa-nome').value.trim();
+  const valor = parseFloat(document.getElementById('caixa-valor').value) || 0;
+  const emoji = document.getElementById('caixa-emoji-sel').value || '📦';
+  const cor   = document.getElementById('caixa-cor-sel').value   || '#00b274';
+  const editId= parseInt(document.getElementById('caixa-edit-id').value) || 0;
+
+  if (!nome) { alert('Dê um nome para a caixinha!'); return; }
+  if (valor < 0) { alert('O valor deve ser positivo.'); return; }
+
+  if (editId) {
+    const c = CAIXINHAS.find(x=>x.id===editId);
+    if (c) { c.nome=nome; c.valor=valor; c.emoji=emoji; c.cor=cor; }
+  } else {
+    CAIXINHAS.push({ id:_caixNextId++, nome, valor, emoji, cor });
+  }
+
+  closeModal('modal-caixa');
+  renderAll();
+}
+
+function deletarCaixa(id) {
+  const c = CAIXINHAS.find(x=>x.id===id);
+  if (!c) return;
+  if (!confirm(`Excluir a caixinha "${c.nome}"?\nO valor volta para o saldo disponível.`)) return;
+  CAIXINHAS = CAIXINHAS.filter(x=>x.id!==id);
+  renderAll();
+}
+
 function saveData() {
   if (!db) return;
   const txn   = db.transaction(STORE_NAME, 'readwrite');
@@ -4686,6 +5039,7 @@ function saveData() {
   store.put({ id: '__reserva__',   data: RESERVA_EMERGENCIA });
   store.put({ id: '__tags__',      data: { tags: TAGS_CUSTOM, nextId: _tagNextId } });
   store.put({ id: '__recorrentes__', data: { items: RECORRENTES_CONFIG, nextId: _recNextId } });
+  store.put({ id: '__caixinhas__',   data: { items: CAIXINHAS, nextId: _caixNextId } });
 }
 
 function loadData() {
@@ -4700,7 +5054,7 @@ function loadData() {
       const pagCart = all.find(r => r.id === '__pagcartao__');
       const orcRec  = all.find(r => r.id === '__orcamentos__');
       const metaEco = all.find(r => r.id === '__metaeco__');
-      const _SKIP = ['__meta__','__pagcartao__','__orcamentos__','__metaeco__','__cartoesconfig__','__patrimonio__','__reserva__','__tags__','__recorrentes__'];
+      const _SKIP = ['__meta__','__pagcartao__','__orcamentos__','__metaeco__','__cartoesconfig__','__patrimonio__','__reserva__','__tags__','__recorrentes__','__caixinhas__'];
       TX                = all.filter(r => !_SKIP.includes(r.id));
       nextId            = meta    ? meta.nextId : (TX.length ? Math.max(...TX.map(t=>t.id)) + 1 : 1);
       PAGAMENTOS_CARTAO = pagCart ? pagCart.data : [];
@@ -4716,6 +5070,8 @@ function loadData() {
       if (tagsRec?.data) { TAGS_CUSTOM = tagsRec.data.tags||[]; _tagNextId = tagsRec.data.nextId||1; }
       const recRec  = all.find(r => r.id === '__recorrentes__');
       if (recRec?.data) { RECORRENTES_CONFIG = recRec.data.items||[]; _recNextId = recRec.data.nextId||1; }
+      const caixRec = all.find(r => r.id === '__caixinhas__');
+      if (caixRec?.data) { CAIXINHAS = caixRec.data.items||[]; _caixNextId = caixRec.data.nextId||1; }
       resolve();
     };
     req.onerror = () => resolve();
@@ -4777,7 +5133,8 @@ const PAGE_TITLES_MOB = {
   investimentos:'Investimentos', metas:'Metas', patrimonio:'Patrimônio',
   lancamento:'Extratos', cartao:'Cartão', planejamento:'Planejamento',
   dados:'Dados', historico:'Histórico',
-  financeiro:'Financeiro', reserva:'Reserva', comparativo:'Comparativo', projecao:'Projeção', simulador:'Simulador'
+  financeiro:'Financeiro', reserva:'Reserva', comparativo:'Comparativo', projecao:'Projeção', simulador:'Simulador',
+  caixinhas:'📦 Caixinhas'
 };
 
 /* Navegação mobile — sobrepõe goTo para atualizar topbar e bottom nav */
@@ -6618,8 +6975,8 @@ function renderComparativo() {
 
   const sc = document.getElementById('comp-saldo-cur');
   const sp = document.getElementById('comp-saldo-prev');
-  if (sc) { sc.textContent=fmt(saldoC); sc.style.color=saldoC>=0?'var(--green)':'var(--red)'; }
-  if (sp) { sp.textContent=fmt(saldoP); sp.style.color=saldoP>=0?'var(--green)':'var(--red)'; }
+  if (sc) { sc.innerHTML=fmtNubank(saldoC); sc.style.color=saldoC>=0?'var(--green)':'var(--red)'; }
+  if (sp) { sp.innerHTML=fmtNubank(saldoP); sp.style.color=saldoP>=0?'var(--green)':'var(--red)'; }
 
   // Gráfico
   mkChart('chartComp',{
@@ -6700,7 +7057,7 @@ function renderProjecao() {
     detalhes.push({nome:MESES_FULL_LOC[m], saldo, rec:avgRec, desp:avgDesp, inv:avgInv});
   }
 
-  mkChart('chartProjecao',{
+  mkChart(document.getElementById('chartProjecao')?'chartProjecao':'chartProjecaoLeg',{
     type:'line',
     data:{ labels, datasets:[{
       label:'Saldo projetado', data,
@@ -7261,6 +7618,49 @@ goTo = function(screen, el, forceDir) {
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-tag')">Cancelar</button>
       <button class="btn btn-green"   style="flex:1;justify-content:center" onclick="salvarTag()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CAIXINHA -->
+<div class="modal-overlay" id="modal-caixa" onclick="if(event.target===this)closeModal('modal-caixa')">
+  <div class="modal-box" style="max-height:88vh">
+    <div class="modal-title" id="modal-caixa-title">📦 Nova Caixinha</div>
+    <input type="hidden" id="caixa-edit-id" value="">
+
+    <div class="form-group">
+      <div class="input-label">Nome</div>
+      <div class="input-row">
+        <input type="text" id="caixa-nome" placeholder="Ex: Viagem, Emergência, iPhone..." maxlength="30" style="width:100%">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Valor reservado (R$)</div>
+      <div class="input-row">
+        <input type="number" id="caixa-valor" placeholder="0,00" step="0.01" min="0" style="width:100%">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Emoji</div>
+      <div class="emoji-picker" id="caixa-emoji-picker">
+        <!-- gerado por JS -->
+      </div>
+      <input type="hidden" id="caixa-emoji-sel" value="📦">
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Cor</div>
+      <div class="cor-picker" id="caixa-cor-picker">
+        <!-- gerado por JS -->
+      </div>
+      <input type="hidden" id="caixa-cor-sel" value="#00b274">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa')">Cancelar</button>
+      <button class="btn btn-green"   style="flex:1;justify-content:center" onclick="salvarCaixa()">💾 Salvar</button>
     </div>
   </div>
 </div>
