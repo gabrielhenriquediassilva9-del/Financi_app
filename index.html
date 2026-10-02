@@ -687,11 +687,10 @@ td.negative { color:var(--red);   font-weight:600; }
 }
 .cx-item {
   border-radius:18px; padding:16px 14px 14px; position:relative;
-  overflow:hidden; cursor:pointer;
+  overflow:visible; cursor:default;
   transition:transform .15s; -webkit-tap-highlight-color:transparent;
   box-shadow:0 4px 16px rgba(0,0,0,.22);
 }
-.cx-item:active { transform:scale(.96); }
 .cx-item-emoji { font-size:24px; margin-bottom:8px; }
 .cx-item-nome  { font-size:12px; font-weight:600; opacity:.85; margin-bottom:6px;
                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -702,14 +701,22 @@ td.negative { color:var(--red);   font-weight:600; }
 .cx-item-valor .nu-sep,
 .cx-item-valor .nu-cents    { font-size:.5em; }
 .cx-item-actions {
-  position:absolute; top:10px; right:10px;
-  display:flex; gap:4px; opacity:.7;
+  position:absolute; top:12px; right:12px;
+  display:flex; gap:8px; opacity:1; z-index:10;
 }
 .cx-item-btn {
-  width:24px; height:24px; border-radius:50%; border:none;
-  background:rgba(255,255,255,.2); color:#fff; font-size:11px;
+  width:36px; height:36px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.6);
+  background:rgba(255,255,255,.3); color:#fff; font-size:16px;
   cursor:pointer; display:flex; align-items:center; justify-content:center;
-  -webkit-tap-highlight-color:transparent;
+  -webkit-tap-highlight-color:transparent; transition:all 0.15s ease;
+  font-weight:600; padding:0; box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  pointer-events:auto;
+}
+.cx-item-btn:hover {
+  background:rgba(255,255,255,.4); border-color:rgba(255,255,255,0.8); transform:scale(1.08);
+}
+.cx-item-btn:active {
+  transform:scale(0.92);
 }
 .cx-add-card {
   border-radius:18px; border:2px dashed var(--border2);
@@ -2149,7 +2156,22 @@ td.negative { color:var(--red);   font-weight:600; }
         <div class="card"><div class="card-label">🔄 Em Progresso</div><div class="card-value" style="color:var(--gold)">0</div></div>
         <div class="card"><div class="card-label">💰 Total Poupado</div><div class="card-value" id="kpi-meta-poup">R$ 0</div></div>
       </div>
-      <div class="section-title" style="margin-top:14px">Suas Metas</div>
+
+      <!-- CAIXINHAS / METAS -->
+      <div class="section-title" style="margin-top:20px">💎 Suas Metas</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--muted)">Metas criadas: <strong style="color:var(--text)" id="cx-saldo-disp" id="meta-count">0</strong></div>
+        <button class="btn btn-green" style="padding:6px 12px;font-size:12px;justify-content:center" onclick="openModalCriarMeta()">➕ Nova Meta</button>
+      </div>
+      <div class="grid grid-2" id="cx-metas-grid"></div>
+      <div id="cx-metas-empty" style="display:none;text-align:center;padding:24px;color:var(--muted);font-size:12px">
+        <div style="font-size:32px;margin-bottom:8px">🎯</div>
+        <div>Nenhuma meta criada ainda.</div>
+        <div style="margin-top:4px;font-size:11px">Clique em "Nova Meta" para começar a guardar dinheiro!</div>
+      </div>
+
+      <!-- GRÁFICOS DE METAS -->
+      <div class="section-title" style="margin-top:20px">📊 Análise de Metas</div>
       <div class="grid grid-3" id="metasGrid"></div>
       <div class="grid grid-2" style="margin-top:14px">
         <div class="chart-box"><div class="chart-title">% de Progresso <small>por meta</small></div><canvas id="chartMetas" height="200"></canvas></div>
@@ -3437,7 +3459,7 @@ function renderAll() {
   popularAnosSelect();
   renderTxList('txList', TX.slice(0,8));
   renderTxFiltrado();
-  renderCaixinhas();
+
   document.getElementById('txCount').textContent = TX.length + ' registros';
 }
 
@@ -3732,24 +3754,60 @@ function renderInvestimentos() {
 }
 
 /* ── Metas ──────────────────────────────────── */
-const METAS_BASE = [
-  {icon:'🆘', nome:'Fundo de Emergência', alvo:30000,  prazo:'Dez/2025'},
-  {icon:'🏖️', nome:'Viagem de Férias',    alvo:5000,   prazo:'Jul/2025'},
-  {icon:'🎓', nome:'Pós-Graduação',        alvo:8000,   prazo:'Mar/2026'},
-  {icon:'🚗', nome:'Troca de Veículo',     alvo:20000,  prazo:'Dez/2026'},
-  {icon:'🏠', nome:'Entrada Imóvel',       alvo:50000,  prazo:'Dez/2028'},
-  {icon:'💰', nome:'Aposentadoria',        alvo:500000, prazo:'2040'},
+let METAS = [
+  {id:1, icon:'🆘', nome:'Fundo de Emergência', alvo:30000,  prazo:'Dez/2025', poupado:5000},
+  {id:2, icon:'🏖️', nome:'Viagem de Férias',    alvo:5000,   prazo:'Jul/2025', poupado:2500},
+  {id:3, icon:'🎓', nome:'Pós-Graduação',        alvo:8000,   prazo:'Mar/2026', poupado:0},
+  {id:4, icon:'🚗', nome:'Troca de Veículo',     alvo:20000,  prazo:'Dez/2026', poupado:3000},
+  {id:5, icon:'🏠', nome:'Entrada Imóvel',       alvo:50000,  prazo:'Dez/2028', poupado:0},
+  {id:6, icon:'💰', nome:'Aposentadoria',        alvo:500000, prazo:'2040', poupado:50000},
 ];
+let _metaNextId = 7;
+
+function renderMetasNaTela() {
+  const grid = document.getElementById('cx-metas-grid');
+  const empty = document.getElementById('cx-metas-empty');
+  const countEl = document.getElementById('cx-saldo-disp');
+  
+  if (countEl) countEl.textContent = METAS.length;
+  
+  if (!grid) return;
+  
+  if (!METAS.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  
+  if (empty) empty.style.display = 'none';
+
+  const cores = ['#00b274', '#e8940a', '#1a6fdb', '#7c4dff', '#e8334a', '#00b274'];
+  
+  grid.innerHTML = METAS.map((m, idx) => `
+    <div class="cx-item" style="background:${cores[idx % cores.length]}; position:relative;">
+      <div class="cx-item-actions" style="z-index:10; position:absolute; top:12px; right:12px; display:flex; gap:8px;">
+        <button class="cx-item-btn" onclick="openModalAdicionarMeta(${m.id}); return false;" title="Adicionar dinheiro" style="pointer-events:auto;">➕</button>
+        <button class="cx-item-btn" onclick="openModalRetirarMeta(${m.id}); return false;" title="Retirar dinheiro" style="pointer-events:auto;">➖</button>
+        <button class="cx-item-btn" onclick="openModalEditarMeta(${m.id}); return false;" title="Editar" style="pointer-events:auto;">✏️</button>
+        <button class="cx-item-btn" onclick="deletarMeta(${m.id}); return false;" title="Excluir" style="pointer-events:auto;">✕</button>
+      </div>
+      <div class="cx-item-emoji">${m.icon}</div>
+      <div class="cx-item-nome" style="color:#fff">${m.nome}</div>
+      <div class="cx-item-valor" style="color:#fff">${fmtNubank(m.poupado)} de ${fmtNubank(m.alvo)}</div>
+      <div style="margin-top:8px; height:3px; background:rgba(255,255,255,0.3); border-radius:2px; overflow:hidden;">
+        <div style="width:${Math.min(m.poupado/m.alvo*100, 100)}%; height:100%; background:rgba(255,255,255,0.8);"></div>
+      </div>
+    </div>
+  `).join('');
+}
 
 function renderMetas() {
-  const k = kpis();
-  const poupTotal = Math.max(0, k.totalRec - k.totalDesp);
-  const totalAlvo = METAS_BASE.reduce((s,m)=>s+m.alvo,0);
+  renderMetasNaTela();
+  
+  const totalPoupado = METAS.reduce((s,m)=>s+m.poupado, 0);
+  const totalAlvo = METAS.reduce((s,m)=>s+m.alvo, 0);
 
-  const metas = METAS_BASE.map(m => ({
-    ...m,
-    poupado: Math.min(poupTotal * (m.alvo/totalAlvo), m.alvo)
-  }));
+  const metas = METAS;
 
   document.getElementById('metasGrid').innerHTML = metas.map(m => {
     const pct = m.alvo>0 ? Math.min(m.poupado/m.alvo*100,100) : 0;
@@ -3799,7 +3857,7 @@ function renderMetas() {
     options:{ responsive:true, plugins:{legend:leg()}, scales:axes() }
   });
 
-  setEl('kpi-meta-poup', 'R$ '+poupTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setEl('kpi-meta-poup', 'R$ '+totalPoupado.toLocaleString('pt-BR',{minimumFractionDigits:2}));
 }
 
 /* ── Patrimônio ─────────────────────────────── */
@@ -4927,8 +4985,10 @@ function renderCaixinhas() {
   if (empty) empty.style.display = 'none';
 
   grid.innerHTML = CAIXINHAS.map(c => `
-    <div class="cx-item" style="background:${c.cor}" onclick="editarCaixa(${c.id})">
+    <div class="cx-item" style="background:${c.cor}">
       <div class="cx-item-actions">
+        <button class="cx-item-btn" onclick="event.stopPropagation();openModalAdicionarCaixa(${c.id})" title="Adicionar dinheiro">➕</button>
+        <button class="cx-item-btn" onclick="event.stopPropagation();openModalRetirarCaixa(${c.id})" title="Retirar dinheiro">➖</button>
         <button class="cx-item-btn" onclick="event.stopPropagation();editarCaixa(${c.id})" title="Editar">✏️</button>
         <button class="cx-item-btn" onclick="event.stopPropagation();deletarCaixa(${c.id})" title="Excluir">✕</button>
       </div>
@@ -4980,6 +5040,205 @@ function openModalCaixa(id) {
 }
 
 function editarCaixa(id) { openModalCaixa(id); }
+
+function openModalAdicionarMeta(id) {
+  const m = METAS.find(x=>x.id===id);
+  if (!m) return;
+  
+  const saldoCarteira = kpis().saldoCarteira;
+  
+  if (saldoCarteira <= 0) {
+    alert('❌ Saldo indisponível na carteira!');
+    return;
+  }
+  
+  document.getElementById('caixa-add-id').value = id;
+  document.getElementById('caixa-add-display-nome').textContent = `${m.icon} ${m.nome}`;
+  document.getElementById('caixa-add-valor').value = '';
+  document.getElementById('caixa-add-saldo-disp').textContent = fmtNubank(Math.max(0, saldoCarteira));
+  document.getElementById('caixa-add-saldo-novo').textContent = fmtNubank(Math.max(0, saldoCarteira));
+  
+  document.getElementById('caixa-add-valor').oninput = function() {
+    const valor = parseFloat(this.value) || 0;
+    const novoSaldo = Math.max(0, saldoCarteira - valor);
+    document.getElementById('caixa-add-saldo-novo').textContent = fmtNubank(novoSaldo);
+    
+    if (valor > saldoCarteira) {
+      document.getElementById('caixa-add-saldo-novo').style.color = 'var(--red)';
+    } else {
+      document.getElementById('caixa-add-saldo-novo').style.color = 'var(--text)';
+    }
+  };
+  
+  openModal('modal-caixa-adicionar');
+}
+
+function confirmarAdicionarCaixa() {
+  const id = parseInt(document.getElementById('caixa-add-id').value);
+  const valor = parseFloat(document.getElementById('caixa-add-valor').value) || 0;
+  const m = METAS.find(x=>x.id===id);
+  
+  if (!m) return;
+  if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+  
+  const saldoCarteira = kpis().saldoCarteira;
+  if (valor > saldoCarteira) { 
+    alert(`❌ Saldo indisponível!\n\nVocê tem apenas R$ ${fmtNubank(Math.max(0, saldoCarteira))} disponível.`); 
+    return; 
+  }
+  
+  // Criar transação de despesa (sai da carteira)
+  TX.push({
+    id: nextId++,
+    data: new Date().toISOString().split('T')[0],
+    tipo: 'despesa',
+    desc: `Adicionado à meta: ${m.nome}`,
+    val: -valor,
+    cat: '🎯 Meta',
+    cartao: ''
+  });
+  
+  // Adicionar à meta
+  m.poupado += valor;
+  closeModal('modal-caixa-adicionar');
+  renderAll();
+  showToast(`✅ R$ ${fmtNubank(valor)} adicionado à meta "${m.nome}"`, 'success');
+}
+
+function openModalRetirarMeta(id) {
+  const m = METAS.find(x=>x.id===id);
+  if (!m) return;
+  
+  if (m.poupado <= 0) {
+    alert('❌ Não há saldo para retirar nesta meta!');
+    return;
+  }
+  
+  document.getElementById('caixa-ret-id').value = id;
+  document.getElementById('caixa-ret-display-nome').textContent = `${m.icon} ${m.nome}`;
+  document.getElementById('caixa-ret-valor').value = '';
+  document.getElementById('caixa-ret-saldo-atual').textContent = fmtNubank(m.poupado);
+  document.getElementById('caixa-ret-saldo-novo').textContent = fmtNubank(m.poupado);
+  
+  document.getElementById('caixa-ret-valor').oninput = function() {
+    const valor = parseFloat(this.value) || 0;
+    const novoSaldo = Math.max(0, m.poupado - valor);
+    document.getElementById('caixa-ret-saldo-novo').textContent = fmtNubank(novoSaldo);
+    
+    if (valor > m.poupado) {
+      document.getElementById('caixa-ret-saldo-novo').style.color = 'var(--red)';
+    } else {
+      document.getElementById('caixa-ret-saldo-novo').style.color = 'var(--text)';
+    }
+  };
+  
+  openModal('modal-caixa-retirar');
+}
+
+function confirmarRetirarCaixa() {
+  const id = parseInt(document.getElementById('caixa-ret-id').value);
+  const valor = parseFloat(document.getElementById('caixa-ret-valor').value) || 0;
+  const m = METAS.find(x=>x.id===id);
+  
+  if (!m) return;
+  if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+  if (valor > m.poupado) { 
+    alert(`❌ Saldo insuficiente!\n\nVocê tem apenas R$ ${fmtNubank(m.poupado)} nesta meta.`); 
+    return; 
+  }
+  
+  // Criar transação de receita (volta à carteira)
+  TX.push({
+    id: nextId++,
+    data: new Date().toISOString().split('T')[0],
+    tipo: 'receita',
+    desc: `Retirado da meta: ${m.nome}`,
+    val: valor,
+    cat: '🎯 Meta',
+    cartao: ''
+  });
+  
+  // Retirar da meta
+  m.poupado -= valor;
+  closeModal('modal-caixa-retirar');
+  renderAll();
+  showToast(`✅ R$ ${fmtNubank(valor)} retirado de "${m.nome}"`, 'success');
+}
+
+function openModalCriarMeta() {
+  document.getElementById('meta-edit-id').value = '';
+  document.getElementById('meta-edit-nome').value = '';
+  document.getElementById('meta-edit-alvo').value = '';
+  document.getElementById('meta-edit-prazo').value = '';
+  document.getElementById('meta-edit-icon').value = '🎯';
+  
+  document.getElementById('modal-meta-edit-title').textContent = `➕ Criar Nova Meta`;
+  openModal('modal-meta-editar');
+}
+
+function openModalEditarMeta(id) {
+  const m = METAS.find(x=>x.id===id);
+  if (!m) return;
+  
+  document.getElementById('meta-edit-id').value = id;
+  document.getElementById('meta-edit-nome').value = m.nome;
+  document.getElementById('meta-edit-alvo').value = m.alvo;
+  document.getElementById('meta-edit-prazo').value = m.prazo;
+  document.getElementById('meta-edit-icon').value = m.icon;
+  
+  document.getElementById('modal-meta-edit-title').textContent = `✏️ Editar Meta`;
+  openModal('modal-meta-editar');
+}
+
+function salvarEdicaoMeta() {
+  const idStr = document.getElementById('meta-edit-id').value;
+  const nome = document.getElementById('meta-edit-nome').value.trim();
+  const alvo = parseFloat(document.getElementById('meta-edit-alvo').value) || 0;
+  const prazo = document.getElementById('meta-edit-prazo').value.trim();
+  const icon = document.getElementById('meta-edit-icon').value.trim() || '🎯';
+  
+  if (!nome) { alert('Digite um nome para a meta!'); return; }
+  if (alvo <= 0) { alert('O valor da meta deve ser maior que zero!'); return; }
+  
+  if (idStr) {
+    // Editar meta existente
+    const id = parseInt(idStr);
+    const m = METAS.find(x=>x.id===id);
+    if (m) {
+      m.nome = nome;
+      m.alvo = alvo;
+      m.prazo = prazo;
+      m.icon = icon;
+      closeModal('modal-meta-editar');
+      renderAll();
+      showToast('✅ Meta atualizada!', 'success');
+    }
+  } else {
+    // Criar nova meta
+    METAS.push({
+      id: _metaNextId++,
+      nome,
+      alvo,
+      prazo,
+      icon,
+      poupado: 0
+    });
+    closeModal('modal-meta-editar');
+    renderAll();
+    showToast('✅ Meta criada!', 'success');
+  }
+}
+
+function deletarMeta(id) {
+  const m = METAS.find(x=>x.id===id);
+  if (!m) return;
+  
+  if (!confirm(`Excluir a meta "${m.nome}"?\n\nO valor guardado nesta meta será perdido.`)) return;
+  
+  METAS = METAS.filter(x=>x.id!==id);
+  renderAll();
+  showToast(`✅ Meta "${m.nome}" removida!`, 'success');
+}
 
 function selectCaixaEmoji(e) {
   document.getElementById('caixa-emoji-sel').value = e;
@@ -5039,7 +5298,7 @@ function saveData() {
   store.put({ id: '__reserva__',   data: RESERVA_EMERGENCIA });
   store.put({ id: '__tags__',      data: { tags: TAGS_CUSTOM, nextId: _tagNextId } });
   store.put({ id: '__recorrentes__', data: { items: RECORRENTES_CONFIG, nextId: _recNextId } });
-  store.put({ id: '__caixinhas__',   data: { items: CAIXINHAS, nextId: _caixNextId } });
+  store.put({ id: '__metas__',   data: { items: METAS, nextId: _metaNextId } });
 }
 
 function loadData() {
@@ -5054,7 +5313,7 @@ function loadData() {
       const pagCart = all.find(r => r.id === '__pagcartao__');
       const orcRec  = all.find(r => r.id === '__orcamentos__');
       const metaEco = all.find(r => r.id === '__metaeco__');
-      const _SKIP = ['__meta__','__pagcartao__','__orcamentos__','__metaeco__','__cartoesconfig__','__patrimonio__','__reserva__','__tags__','__recorrentes__','__caixinhas__'];
+      const _SKIP = ['__meta__','__pagcartao__','__orcamentos__','__metaeco__','__cartoesconfig__','__patrimonio__','__reserva__','__tags__','__recorrentes__','__metas__'];
       TX                = all.filter(r => !_SKIP.includes(r.id));
       nextId            = meta    ? meta.nextId : (TX.length ? Math.max(...TX.map(t=>t.id)) + 1 : 1);
       PAGAMENTOS_CARTAO = pagCart ? pagCart.data : [];
@@ -5070,8 +5329,8 @@ function loadData() {
       if (tagsRec?.data) { TAGS_CUSTOM = tagsRec.data.tags||[]; _tagNextId = tagsRec.data.nextId||1; }
       const recRec  = all.find(r => r.id === '__recorrentes__');
       if (recRec?.data) { RECORRENTES_CONFIG = recRec.data.items||[]; _recNextId = recRec.data.nextId||1; }
-      const caixRec = all.find(r => r.id === '__caixinhas__');
-      if (caixRec?.data) { CAIXINHAS = caixRec.data.items||[]; _caixNextId = caixRec.data.nextId||1; }
+      const metasRec = all.find(r => r.id === '__metas__');
+      if (metasRec?.data) { METAS = metasRec.data.items||[]; _metaNextId = metasRec.data.nextId||1; }
       resolve();
     };
     req.onerror = () => resolve();
@@ -7622,6 +7881,44 @@ goTo = function(screen, el, forceDir) {
   </div>
 </div>
 
+<!-- MODAL: Editar Meta -->
+<div class="modal-overlay" id="modal-meta-editar" onclick="if(event.target===this)closeModal('modal-meta-editar')">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title" id="modal-meta-edit-title">✏️ Editar Meta</div>
+    <input type="hidden" id="meta-edit-id" value="">
+
+    <div class="form-group">
+      <div class="input-label">Emoji</div>
+      <div class="input-row">
+        <input type="text" id="meta-edit-icon" placeholder="Ex: 🎓" maxlength="2" style="width:100%">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Nome da Meta</div>
+      <div class="input-row">
+        <input type="text" id="meta-edit-nome" placeholder="Ex: Viagem, Educação..." maxlength="50" style="width:100%">
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap:10px">
+      <div class="form-group">
+        <div class="input-label">Valor Alvo (R$)</div>
+        <div class="input-row"><span style="color:var(--muted)">R$</span><input type="number" id="meta-edit-alvo" placeholder="0" step="0.01" min="0"></div>
+      </div>
+      <div class="form-group">
+        <div class="input-label">Prazo</div>
+        <div class="input-row"><input type="text" id="meta-edit-prazo" placeholder="Ex: Dez/2025"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-meta-editar')">Cancelar</button>
+      <button class="btn btn-green"   style="flex:1;justify-content:center" onclick="salvarEdicaoMeta()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CAIXINHA -->
 <div class="modal-overlay" id="modal-caixa" onclick="if(event.target===this)closeModal('modal-caixa')">
   <div class="modal-box" style="max-height:88vh">
@@ -7661,6 +7958,68 @@ goTo = function(screen, el, forceDir) {
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa')">Cancelar</button>
       <button class="btn btn-green"   style="flex:1;justify-content:center" onclick="salvarCaixa()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Adicionar Dinheiro à Caixinha -->
+<div class="modal-overlay" id="modal-caixa-adicionar" onclick="if(event.target===this)closeModal('modal-caixa-adicionar')">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-title">➕ Adicionar dinheiro</div>
+    <input type="hidden" id="caixa-add-id" value="">
+    
+    <div class="form-group">
+      <div class="input-label" id="caixa-add-label-nome">Caixinha</div>
+      <div style="font-size:14px;color:var(--text);font-weight:700;margin-top:8px" id="caixa-add-display-nome">📦 Viagem</div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Valor a adicionar (R$)</div>
+      <div class="input-row">
+        <span style="color:var(--muted)">R$</span>
+        <input type="number" id="caixa-add-valor" placeholder="0,00" step="0.01" min="0" style="flex:1">
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);background:var(--surface2);padding:12px;border-radius:var(--radius-xs);margin-bottom:16px">
+      <div>Saldo disponível: <strong id="caixa-add-saldo-disp" style="color:var(--green)">R$ 0,00</strong></div>
+      <div style="margin-top:6px">Após transferência: <strong id="caixa-add-saldo-novo" style="color:var(--text)">R$ 0,00</strong></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa-adicionar')">Cancelar</button>
+      <button class="btn btn-green" style="flex:1;justify-content:center" onclick="confirmarAdicionarCaixa()">✅ Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Retirar Dinheiro da Caixinha -->
+<div class="modal-overlay" id="modal-caixa-retirar" onclick="if(event.target===this)closeModal('modal-caixa-retirar')">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-title">➖ Retirar dinheiro</div>
+    <input type="hidden" id="caixa-ret-id" value="">
+    
+    <div class="form-group">
+      <div class="input-label" id="caixa-ret-label-nome">Caixinha</div>
+      <div style="font-size:14px;color:var(--text);font-weight:700;margin-top:8px" id="caixa-ret-display-nome">📦 Viagem</div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Valor a retirar (R$)</div>
+      <div class="input-row">
+        <span style="color:var(--muted)">R$</span>
+        <input type="number" id="caixa-ret-valor" placeholder="0,00" step="0.01" min="0" style="flex:1">
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);background:var(--surface2);padding:12px;border-radius:var(--radius-xs);margin-bottom:16px">
+      <div>Saldo na caixinha: <strong id="caixa-ret-saldo-atual" style="color:var(--text)">R$ 0,00</strong></div>
+      <div style="margin-top:6px">Após retirada: <strong id="caixa-ret-saldo-novo" style="color:var(--text)">R$ 0,00</strong></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa-retirar')">Cancelar</button>
+      <button class="btn btn-red" style="flex:1;justify-content:center" onclick="confirmarRetirarCaixa()">✅ Retirar</button>
     </div>
   </div>
 </div>
