@@ -3786,8 +3786,9 @@ function renderMetasNaTela() {
   grid.innerHTML = METAS.map((m, idx) => `
     <div class="cx-item" style="background:${cores[idx % cores.length]}; position:relative;">
       <div class="cx-item-actions" style="z-index:10; position:absolute; top:12px; right:12px; display:flex; gap:8px;">
-        <button class="cx-item-btn" onclick="openModalAdicionarMeta(${m.id}); return false;" title="Adicionar dinheiro" style="pointer-events:auto;">➕</button>
-        <button class="cx-item-btn" onclick="openModalRetirarMeta(${m.id}); return false;" title="Retirar dinheiro" style="pointer-events:auto;">➖</button>
+        <button class="cx-item-btn" onclick="openModalAdicionarMeta(${m.id}); return false;" title="Adicionar (carteira)" style="pointer-events:auto;">➕</button>
+        <button class="cx-item-btn" onclick="openModalAdicionarDireto(${m.id}); return false;" title="Adicionar direto" style="pointer-events:auto;">⬆️</button>
+        <button class="cx-item-btn" onclick="openModalRetirarMeta(${m.id}); return false;" title="Retirar" style="pointer-events:auto;">➖</button>
         <button class="cx-item-btn" onclick="openModalEditarMeta(${m.id}); return false;" title="Editar" style="pointer-events:auto;">✏️</button>
         <button class="cx-item-btn" onclick="deletarMeta(${m.id}); return false;" title="Excluir" style="pointer-events:auto;">✕</button>
       </div>
@@ -4146,8 +4147,14 @@ function showToast(msg, tipo='info', dur=3000) {
 /* ═══════════════════════════════════════════════
    MODAL
 ═══════════════════════════════════════════════ */
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { 
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+function closeModal(id) { 
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
 document.addEventListener('click', e => {
   if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
 });
@@ -5074,35 +5081,78 @@ function openModalAdicionarMeta(id) {
 }
 
 function confirmarAdicionarCaixa() {
-  const id = parseInt(document.getElementById('caixa-add-id').value);
-  const valor = parseFloat(document.getElementById('caixa-add-valor').value) || 0;
+  try {
+    const id = parseInt(document.getElementById('caixa-add-id').value);
+    const valor = parseFloat(document.getElementById('caixa-add-valor').value) || 0;
+    const m = METAS.find(x=>x.id===id);
+    
+    if (!m) return;
+    if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+    
+    const k = kpis();
+    const saldoCarteira = k?.saldoCarteira || 0;
+    
+    if (valor > saldoCarteira) { 
+      alert(`❌ Saldo indisponível!\n\nVocê tem apenas R$ ${fmtNubank(Math.max(0, saldoCarteira))} disponível.`); 
+      return; 
+    }
+    
+    if (!TX) TX = [];
+    if (!nextId) nextId = 1;
+    
+    // Criar transação de despesa (sai da carteira)
+    TX.push({
+      id: nextId++,
+      data: new Date().toISOString().split('T')[0],
+      tipo: 'despesa',
+      desc: `Adicionado à meta: ${m.nome}`,
+      val: -valor,
+      cat: '🎯 Meta',
+      cartao: ''
+    });
+    
+    // Adicionar à meta
+    m.poupado += valor;
+    closeModal('modal-caixa-adicionar');
+    renderAll();
+    showToast(`✅ R$ ${fmtNubank(valor)} adicionado à meta "${m.nome}"`, 'success');
+  } catch(e) {
+    console.error('Erro ao adicionar à meta:', e);
+    alert('❌ Erro ao processar transação');
+  }
+}
+
+function openModalAdicionarDireto(id) {
+  const m = METAS.find(x=>x.id===id);
+  if (!m) return;
+  
+  document.getElementById('meta-direto-id').value = id;
+  document.getElementById('meta-direto-nome').textContent = `${m.icon} ${m.nome}`;
+  document.getElementById('meta-direto-valor').value = '';
+  document.getElementById('meta-direto-saldo-atual').textContent = fmtNubank(m.poupado);
+  document.getElementById('meta-direto-saldo-novo').textContent = fmtNubank(m.poupado);
+  
+  document.getElementById('meta-direto-valor').oninput = function() {
+    const valor = parseFloat(this.value) || 0;
+    const novoSaldo = m.poupado + valor;
+    document.getElementById('meta-direto-saldo-novo').textContent = fmtNubank(novoSaldo);
+  };
+  
+  openModal('modal-meta-adicionar-direto');
+}
+
+function confirmarAdicionarDireto() {
+  const id = parseInt(document.getElementById('meta-direto-id').value);
+  const valor = parseFloat(document.getElementById('meta-direto-valor').value) || 0;
   const m = METAS.find(x=>x.id===id);
   
   if (!m) return;
   if (valor <= 0) { alert('Digite um valor positivo!'); return; }
   
-  const saldoCarteira = kpis().saldoCarteira;
-  if (valor > saldoCarteira) { 
-    alert(`❌ Saldo indisponível!\n\nVocê tem apenas R$ ${fmtNubank(Math.max(0, saldoCarteira))} disponível.`); 
-    return; 
-  }
-  
-  // Criar transação de despesa (sai da carteira)
-  TX.push({
-    id: nextId++,
-    data: new Date().toISOString().split('T')[0],
-    tipo: 'despesa',
-    desc: `Adicionado à meta: ${m.nome}`,
-    val: -valor,
-    cat: '🎯 Meta',
-    cartao: ''
-  });
-  
-  // Adicionar à meta
   m.poupado += valor;
-  closeModal('modal-caixa-adicionar');
+  closeModal('modal-meta-adicionar-direto');
   renderAll();
-  showToast(`✅ R$ ${fmtNubank(valor)} adicionado à meta "${m.nome}"`, 'success');
+  showToast(`✅ R$ ${fmtNubank(valor)} adicionado diretamente à "${m.nome}"`, 'success');
 }
 
 function openModalRetirarMeta(id) {
@@ -5136,33 +5186,41 @@ function openModalRetirarMeta(id) {
 }
 
 function confirmarRetirarCaixa() {
-  const id = parseInt(document.getElementById('caixa-ret-id').value);
-  const valor = parseFloat(document.getElementById('caixa-ret-valor').value) || 0;
-  const m = METAS.find(x=>x.id===id);
-  
-  if (!m) return;
-  if (valor <= 0) { alert('Digite um valor positivo!'); return; }
-  if (valor > m.poupado) { 
-    alert(`❌ Saldo insuficiente!\n\nVocê tem apenas R$ ${fmtNubank(m.poupado)} nesta meta.`); 
-    return; 
+  try {
+    const id = parseInt(document.getElementById('caixa-ret-id').value);
+    const valor = parseFloat(document.getElementById('caixa-ret-valor').value) || 0;
+    const m = METAS.find(x=>x.id===id);
+    
+    if (!m) return;
+    if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+    if (valor > m.poupado) { 
+      alert(`❌ Saldo insuficiente!\n\nVocê tem apenas R$ ${fmtNubank(m.poupado)} nesta meta.`); 
+      return; 
+    }
+    
+    if (!TX) TX = [];
+    if (!nextId) nextId = 1;
+    
+    // Criar transação de receita (volta à carteira)
+    TX.push({
+      id: nextId++,
+      data: new Date().toISOString().split('T')[0],
+      tipo: 'receita',
+      desc: `Retirado da meta: ${m.nome}`,
+      val: valor,
+      cat: '🎯 Meta',
+      cartao: ''
+    });
+    
+    // Retirar da meta
+    m.poupado -= valor;
+    closeModal('modal-caixa-retirar');
+    renderAll();
+    showToast(`✅ R$ ${fmtNubank(valor)} retirado de "${m.nome}"`, 'success');
+  } catch(e) {
+    console.error('Erro ao retirar de meta:', e);
+    alert('❌ Erro ao processar transação');
   }
-  
-  // Criar transação de receita (volta à carteira)
-  TX.push({
-    id: nextId++,
-    data: new Date().toISOString().split('T')[0],
-    tipo: 'receita',
-    desc: `Retirado da meta: ${m.nome}`,
-    val: valor,
-    cat: '🎯 Meta',
-    cartao: ''
-  });
-  
-  // Retirar da meta
-  m.poupado -= valor;
-  closeModal('modal-caixa-retirar');
-  renderAll();
-  showToast(`✅ R$ ${fmtNubank(valor)} retirado de "${m.nome}"`, 'success');
 }
 
 function openModalCriarMeta() {
@@ -5191,53 +5249,66 @@ function openModalEditarMeta(id) {
 }
 
 function salvarEdicaoMeta() {
-  const idStr = document.getElementById('meta-edit-id').value;
-  const nome = document.getElementById('meta-edit-nome').value.trim();
-  const alvo = parseFloat(document.getElementById('meta-edit-alvo').value) || 0;
-  const prazo = document.getElementById('meta-edit-prazo').value.trim();
-  const icon = document.getElementById('meta-edit-icon').value.trim() || '🎯';
-  
-  if (!nome) { alert('Digite um nome para a meta!'); return; }
-  if (alvo <= 0) { alert('O valor da meta deve ser maior que zero!'); return; }
-  
-  if (idStr) {
-    // Editar meta existente
-    const id = parseInt(idStr);
-    const m = METAS.find(x=>x.id===id);
-    if (m) {
-      m.nome = nome;
-      m.alvo = alvo;
-      m.prazo = prazo;
-      m.icon = icon;
+  try {
+    const idStr = document.getElementById('meta-edit-id').value;
+    const nome = document.getElementById('meta-edit-nome').value.trim();
+    const alvo = parseFloat(document.getElementById('meta-edit-alvo').value) || 0;
+    const prazo = document.getElementById('meta-edit-prazo').value.trim();
+    const icon = document.getElementById('meta-edit-icon').value.trim() || '🎯';
+    
+    if (!nome) { alert('Digite um nome para a meta!'); return; }
+    if (alvo <= 0) { alert('O valor da meta deve ser maior que zero!'); return; }
+    
+    if (!METAS) METAS = [];
+    if (!_metaNextId) _metaNextId = 7;
+    
+    if (idStr) {
+      // Editar meta existente
+      const id = parseInt(idStr);
+      const m = METAS.find(x=>x.id===id);
+      if (m) {
+        m.nome = nome;
+        m.alvo = alvo;
+        m.prazo = prazo;
+        m.icon = icon;
+        closeModal('modal-meta-editar');
+        renderAll();
+        showToast('✅ Meta atualizada!', 'success');
+      }
+    } else {
+      // Criar nova meta
+      METAS.push({
+        id: _metaNextId++,
+        nome,
+        alvo,
+        prazo,
+        icon,
+        poupado: 0
+      });
       closeModal('modal-meta-editar');
       renderAll();
-      showToast('✅ Meta atualizada!', 'success');
+      showToast('✅ Meta criada!', 'success');
     }
-  } else {
-    // Criar nova meta
-    METAS.push({
-      id: _metaNextId++,
-      nome,
-      alvo,
-      prazo,
-      icon,
-      poupado: 0
-    });
-    closeModal('modal-meta-editar');
-    renderAll();
-    showToast('✅ Meta criada!', 'success');
+  } catch(e) {
+    console.error('Erro ao salvar meta:', e);
+    alert('❌ Erro ao processar meta');
   }
 }
 
 function deletarMeta(id) {
-  const m = METAS.find(x=>x.id===id);
-  if (!m) return;
-  
-  if (!confirm(`Excluir a meta "${m.nome}"?\n\nO valor guardado nesta meta será perdido.`)) return;
-  
-  METAS = METAS.filter(x=>x.id!==id);
-  renderAll();
-  showToast(`✅ Meta "${m.nome}" removida!`, 'success');
+  try {
+    const m = METAS.find(x=>x.id===id);
+    if (!m) return;
+    
+    if (!confirm(`Excluir a meta "${m.nome}"?\n\nO valor guardado nesta meta será perdido.`)) return;
+    
+    METAS = METAS.filter(x=>x.id!==id);
+    renderAll();
+    showToast(`✅ Meta "${m.nome}" removida!`, 'success');
+  } catch(e) {
+    console.error('Erro ao deletar meta:', e);
+    alert('❌ Erro ao deletar meta');
+  }
 }
 
 function selectCaixaEmoji(e) {
@@ -7958,6 +8029,38 @@ goTo = function(screen, el, forceDir) {
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa')">Cancelar</button>
       <button class="btn btn-green"   style="flex:1;justify-content:center" onclick="salvarCaixa()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Adicionar Direto à Meta -->
+<div class="modal-overlay" id="modal-meta-adicionar-direto" onclick="if(event.target===this)closeModal('modal-meta-adicionar-direto')">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-title">⬆️ Adicionar à Meta (sem descontar carteira)</div>
+    <input type="hidden" id="meta-direto-id" value="">
+    
+    <div class="form-group">
+      <div class="input-label">Meta</div>
+      <div style="font-size:14px;color:var(--text);font-weight:700;margin-top:8px" id="meta-direto-nome">🎯 Sua Meta</div>
+    </div>
+
+    <div class="form-group">
+      <div class="input-label">Valor a adicionar (R$)</div>
+      <div class="input-row">
+        <span style="color:var(--muted)">R$</span>
+        <input type="number" id="meta-direto-valor" placeholder="0,00" step="0.01" min="0" style="flex:1">
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);background:var(--surface2);padding:12px;border-radius:var(--radius-xs);margin-bottom:16px">
+      <div>Saldo atual: <strong id="meta-direto-saldo-atual" style="color:var(--text)">R$ 0,00</strong></div>
+      <div style="margin-top:6px">Após adicionar: <strong id="meta-direto-saldo-novo" style="color:var(--text)">R$ 0,00</strong></div>
+      <div style="margin-top:6px; font-size:11px; color:var(--gold);">⚠️ Carteira NÃO será afetada</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-meta-adicionar-direto')">Cancelar</button>
+      <button class="btn btn-green" style="flex:1;justify-content:center" onclick="confirmarAdicionarDireto()">✅ Adicionar</button>
     </div>
   </div>
 </div>
