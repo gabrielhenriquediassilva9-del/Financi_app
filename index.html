@@ -5282,6 +5282,102 @@ function openModalCaixa(id) {
 
 function editarCaixa(id) { openModalCaixa(id); }
 
+/* ── Adicionar dinheiro a uma caixinha ──────────────────────────
+   O saldo da carteira já desconta o total das caixinhas (kpis()),
+   então basta aumentar c.valor: o dinheiro sai da carteira sem
+   criar lançamento extra (que descontaria duas vezes). */
+function openModalAdicionarCaixa(id) {
+  const c = CAIXINHAS.find(x=>x.id===id);
+  if (!c) return;
+  const saldoLivre = kpis().saldoCarteira;
+  if (saldoLivre <= 0) { alert('❌ Saldo indisponível na carteira!'); return; }
+
+  document.getElementById('caixa-add-tipo').value = 'caixa';
+  document.getElementById('caixa-add-id').value = id;
+  document.getElementById('caixa-add-display-nome').textContent = `${c.emoji} ${c.nome}`;
+  document.getElementById('caixa-add-valor').value = '';
+  document.getElementById('caixa-add-saldo-disp').textContent = fmtNubank(Math.max(0, saldoLivre));
+  document.getElementById('caixa-add-saldo-novo').textContent = fmtNubank(Math.max(0, saldoLivre));
+  document.getElementById('caixa-add-valor').oninput = function() {
+    const valor = parseFloat(this.value) || 0;
+    const el = document.getElementById('caixa-add-saldo-novo');
+    el.textContent = fmtNubank(Math.max(0, saldoLivre - valor));
+    el.style.color = valor > saldoLivre ? 'var(--red)' : 'var(--text)';
+  };
+  openModal('modal-caixa-adicionar');
+}
+
+function confirmarAdicionarNaCaixinha() {
+  const id    = parseInt(document.getElementById('caixa-add-id').value);
+  const valor = Math.round((parseFloat(document.getElementById('caixa-add-valor').value) || 0) * 100) / 100;
+  const c = CAIXINHAS.find(x=>x.id===id);
+  if (!c) { alert('❌ Caixinha não encontrada.'); return; }
+  if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+
+  const saldoLivre = kpis().saldoCarteira;
+  if (valor > saldoLivre) {
+    alert(`❌ Saldo indisponível!\n\nVocê tem apenas R$ ${fmtNubank(Math.max(0, saldoLivre))} disponível.`);
+    return;
+  }
+
+  c.valor = Math.round((c.valor + valor) * 100) / 100;
+  closeModal('modal-caixa-adicionar');
+  renderAll();
+  showToast(`✅ R$ ${fmtNubank(valor)} adicionado à caixinha "${c.nome}"`, 'success');
+}
+
+/* ── Retirar dinheiro de uma caixinha ───────────────────────── */
+function openModalRetirarCaixa(id) {
+  const c = CAIXINHAS.find(x=>x.id===id);
+  if (!c) return;
+  if (c.valor <= 0) { alert('❌ Não há saldo para retirar nesta caixinha!'); return; }
+
+  document.getElementById('caixa-ret-tipo').value = 'caixa';
+  document.getElementById('caixa-ret-id').value = id;
+  document.getElementById('caixa-ret-display-nome').textContent = `${c.emoji} ${c.nome}`;
+  document.getElementById('caixa-ret-valor').value = '';
+  document.getElementById('caixa-ret-saldo-atual').textContent = fmtNubank(c.valor);
+  document.getElementById('caixa-ret-saldo-novo').textContent = fmtNubank(c.valor);
+  document.getElementById('caixa-ret-valor').oninput = function() {
+    const valor = parseFloat(this.value) || 0;
+    const el = document.getElementById('caixa-ret-saldo-novo');
+    el.textContent = fmtNubank(Math.max(0, c.valor - valor));
+    el.style.color = valor > c.valor ? 'var(--red)' : 'var(--text)';
+  };
+  openModal('modal-caixa-retirar');
+}
+
+function confirmarRetirarDaCaixinha() {
+  const id    = parseInt(document.getElementById('caixa-ret-id').value);
+  const valor = Math.round((parseFloat(document.getElementById('caixa-ret-valor').value) || 0) * 100) / 100;
+  const c = CAIXINHAS.find(x=>x.id===id);
+  if (!c) { alert('❌ Caixinha não encontrada.'); return; }
+  if (valor <= 0) { alert('Digite um valor positivo!'); return; }
+  if (valor > c.valor) {
+    alert(`❌ Saldo insuficiente!\n\nVocê tem apenas R$ ${fmtNubank(c.valor)} nesta caixinha.`);
+    return;
+  }
+
+  // O valor volta automaticamente para a carteira (kpis() desconta só o total das caixinhas)
+  c.valor = Math.round((c.valor - valor) * 100) / 100;
+  closeModal('modal-caixa-retirar');
+  renderAll();
+  showToast(`✅ R$ ${fmtNubank(valor)} retirado de "${c.nome}"`, 'success');
+}
+
+/* Despachantes: o mesmo modal serve para caixinhas e metas */
+function confirmarAdicionarDinheiro() {
+  const tipo = document.getElementById('caixa-add-tipo').value;
+  if (tipo === 'caixa') confirmarAdicionarNaCaixinha();
+  else confirmarAdicionarCaixa();
+}
+
+function confirmarRetirarDinheiro() {
+  const tipo = document.getElementById('caixa-ret-tipo').value;
+  if (tipo === 'caixa') confirmarRetirarDaCaixinha();
+  else confirmarRetirarCaixa();
+}
+
 function openModalAdicionarMeta(id) {
   const m = METAS.find(x=>x.id===id);
   if (!m) return;
@@ -5294,6 +5390,7 @@ function openModalAdicionarMeta(id) {
   }
   
   document.getElementById('caixa-add-id').value = id;
+  document.getElementById('caixa-add-tipo').value = 'meta';
   document.getElementById('caixa-add-display-nome').textContent = `${m.icon} ${m.nome}`;
   document.getElementById('caixa-add-valor').value = '';
   document.getElementById('caixa-add-saldo-disp').textContent = fmtNubank(Math.max(0, saldoCarteira));
@@ -5399,6 +5496,7 @@ function openModalRetirarMeta(id) {
   }
   
   document.getElementById('caixa-ret-id').value = id;
+  document.getElementById('caixa-ret-tipo').value = 'meta';
   document.getElementById('caixa-ret-display-nome').textContent = `${m.icon} ${m.nome}`;
   document.getElementById('caixa-ret-valor').value = '';
   document.getElementById('caixa-ret-saldo-atual').textContent = fmtNubank(m.poupado);
@@ -5568,11 +5666,20 @@ function salvarCaixa() {
   if (!nome) { alert('Dê um nome para a caixinha!'); return; }
   if (valor < 0) { alert('O valor deve ser positivo.'); return; }
 
+  // Valor já reservado nesta caixinha (ao editar) não conta como saldo a debitar
+  const atual = editId ? (CAIXINHAS.find(x=>x.id===editId)?.valor || 0) : 0;
+  const aumento = Math.round((valor - atual) * 100) / 100;
+  const saldoLivre = kpis().saldoCarteira;
+  if (aumento > 0 && aumento > saldoLivre) {
+    alert(`❌ Saldo indisponível!\n\nVocê tem apenas R$ ${fmtNubank(Math.max(0, saldoLivre))} disponível na carteira.`);
+    return;
+  }
+
   if (editId) {
     const c = CAIXINHAS.find(x=>x.id===editId);
-    if (c) { c.nome=nome; c.valor=valor; c.emoji=emoji; c.cor=cor; }
+    if (c) { c.nome=nome; c.valor=Math.round(valor*100)/100; c.emoji=emoji; c.cor=cor; }
   } else {
-    CAIXINHAS.push({ id:_caixNextId++, nome, valor, emoji, cor });
+    CAIXINHAS.push({ id:_caixNextId++, nome, valor: Math.round(valor*100)/100, emoji, cor });
   }
 
   closeModal('modal-caixa');
@@ -8427,6 +8534,7 @@ goTo = function(screen, el, forceDir) {
   <div class="modal-box" style="max-width:380px">
     <div class="modal-title">➕ Adicionar dinheiro</div>
     <input type="hidden" id="caixa-add-id" value="">
+    <input type="hidden" id="caixa-add-tipo" value="meta">
     
     <div class="form-group">
       <div class="input-label" id="caixa-add-label-nome">Caixinha</div>
@@ -8448,7 +8556,7 @@ goTo = function(screen, el, forceDir) {
 
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa-adicionar')">Cancelar</button>
-      <button class="btn btn-green" style="flex:1;justify-content:center" onclick="confirmarAdicionarCaixa()">✅ Adicionar</button>
+      <button class="btn btn-green" style="flex:1;justify-content:center" onclick="confirmarAdicionarDinheiro()">✅ Adicionar</button>
     </div>
   </div>
 </div>
@@ -8458,6 +8566,7 @@ goTo = function(screen, el, forceDir) {
   <div class="modal-box" style="max-width:380px">
     <div class="modal-title">➖ Retirar dinheiro</div>
     <input type="hidden" id="caixa-ret-id" value="">
+    <input type="hidden" id="caixa-ret-tipo" value="meta">
     
     <div class="form-group">
       <div class="input-label" id="caixa-ret-label-nome">Caixinha</div>
@@ -8479,7 +8588,7 @@ goTo = function(screen, el, forceDir) {
 
     <div class="modal-footer">
       <button class="btn btn-outline" style="flex:1;justify-content:center" onclick="closeModal('modal-caixa-retirar')">Cancelar</button>
-      <button class="btn btn-red" style="flex:1;justify-content:center" onclick="confirmarRetirarCaixa()">✅ Retirar</button>
+      <button class="btn btn-red" style="flex:1;justify-content:center" onclick="confirmarRetirarDinheiro()">✅ Retirar</button>
     </div>
   </div>
 </div>
