@@ -1713,6 +1713,22 @@ td.negative { color:var(--red);   font-weight:600; }
 
 /* ── Seção de auth: animação já existente ─ manter ── */
 
+
+/* ═══ TUTORIAL GUIADO ═══ */
+.tut-painel { display:none; position:fixed; left:50%; bottom:16px; transform:translateX(-50%); width:min(92vw,440px); background:var(--surface); border:1px solid var(--border2); border-radius:16px; box-shadow:var(--shadow); padding:16px 18px; z-index:850; animation:slideUp .22s ease; }
+.tut-painel.open { display:block; }
+@media (max-width:768px) { .tut-painel { bottom:calc(92px + env(safe-area-inset-bottom,0px)); } }
+.tut-topo { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); margin-bottom:6px; }
+.tut-x { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:4px 6px; }
+.tut-titulo { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
+.tut-texto { font-size:13.5px; line-height:1.6; color:var(--text2); min-height:72px; max-height:30vh; overflow:auto; }
+.tut-barra { height:4px; background:var(--surface3); border-radius:4px; margin:12px 0; overflow:hidden; }
+#tut-barra-fill { height:100%; width:0; background:var(--green); transition:width .25s ease; }
+.tut-acoes { display:flex; gap:10px; }
+.tut-acoes .btn { flex:1; justify-content:center; }
+.tut-check { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); cursor:pointer; margin-top:12px; }
+.tut-check input { width:16px; height:16px; accent-color:var(--green); }
+.tut-destaque { outline:2px solid var(--green) !important; outline-offset:3px; box-shadow:0 0 0 6px rgba(0,178,116,.22) !important; border-radius:10px; transition:box-shadow .2s ease; }
 </style>
 </head>
 <body>
@@ -1867,6 +1883,7 @@ td.negative { color:var(--red);   font-weight:600; }
 <header id="mob-topbar" style="display:none">
   <div class="mob-logo">$</div>
   <div class="mob-title" id="mobTitle">Dashboard</div>
+  <button class="mob-btn" onclick="openTutorial()" title="Tutorial">❓</button>
   <button class="mob-btn" onclick="toggleHideValues()" id="mobEyeBtn">🙈</button>
   <button class="mob-btn" onclick="toggleTheme()" id="mobThemeBtn">🌙</button>
   <div class="avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0" id="mobAvatar">JP</div>
@@ -1905,6 +1922,7 @@ td.negative { color:var(--red);   font-weight:600; }
     <div class="mob-drawer-item" onclick="mobGoTo('lancamento')"><div>📋</div><span>Extratos</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('historico')"><div>📊</div><span>Histórico</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('dados')"><div>📂</div><span>Dados</span></div>
+    <div class="mob-drawer-item" onclick="closeDrawer();openTutorial()"><div>❓</div><span>Tutorial</span></div>
     <div class="mob-drawer-item" onclick="closeDrawer();openMetaEcoModal()"><div>🎯</div><span>Meta Eco.</span></div>
     <div class="mob-drawer-item" onclick="closeDrawer();openOrcModal()"><div>📊</div><span>Orçamento</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('financeiro')"><div>💰</div><span>Financeiro</span></div>
@@ -2082,6 +2100,9 @@ td.negative { color:var(--red);   font-weight:600; }
       <button class="toggle-pill" aria-label="Tema"></button>
       <span class="t-icon t-icon-moon">🌙</span>
     </div>
+
+    <!-- TUTORIAL -->
+    <button class="hide-btn" onclick="openTutorial()" title="Tutorial do aplicativo"><span>❓</span><span>Tutorial</span></button>
 
     <!-- OCULTAR VALORES -->
     <button class="hide-btn" id="hideValuesBtn" onclick="toggleHideValues()" title="Ocultar/exibir valores">
@@ -8592,6 +8613,201 @@ goTo = function(screen, el, forceDir) {
     </div>
   </div>
 </div>
+
+
+<!-- ══ TUTORIAL GUIADO (painel não bloqueante) ══ -->
+<div id="tut-painel" class="tut-painel" role="dialog" aria-live="polite">
+  <div class="tut-topo">
+    <span id="tut-progresso">1 de 1</span>
+    <button class="tut-x" onclick="tutorialEncerrar()">✕ Encerrar</button>
+  </div>
+  <div class="tut-titulo" id="tut-titulo"></div>
+  <div class="tut-texto" id="tut-texto"></div>
+  <div class="tut-barra"><div id="tut-barra-fill"></div></div>
+  <div class="tut-acoes">
+    <button class="btn btn-outline" id="tut-voltar" onclick="tutorialVoltar()">Anterior</button>
+    <button class="btn btn-green" id="tut-avancar" onclick="tutorialAvancar()">Próximo</button>
+  </div>
+  <label class="tut-check">
+    <input type="checkbox" id="tut-nao-mostrar" onchange="tutorialSalvarPreferencia(this)">
+    Não mostrar novamente ao abrir o app
+  </label>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   TUTORIAL GUIADO: leva o usuário a cada tela e explica
+   para que serve. Exibido no primeiro acesso e reabrível
+   pelo botão ❓ ou pelo menu Mais.
+═══════════════════════════════════════════════════ */
+const TUT_PASSOS = [
+  { tela: null, alvo: [], titulo: '👋 Bem-vindo ao FinanceApp',
+    texto: 'Vamos percorrer o app juntos. Eu levo você até cada tela e explico para que ela serve. Você pode avançar, voltar ou encerrar a qualquer momento.' },
+
+  { tela: 'dashboard', alvo: ['.month-selector', '#hideValuesBtn', '#mobEyeBtn'], titulo: '📊 Início',
+    texto: 'Este é o painel principal. Ele mostra um resumo do mês selecionado, com indicadores e gráficos. Use o seletor de mês no topo para ver outros períodos. O botão 👁️ oculta os valores, útil quando há outras pessoas por perto.' },
+
+  { tela: 'lancamento', alvo: ['.mnav-fab', '.sidebar-bottom .nav-item'], titulo: '＋ Lançamento',
+    texto: 'Aqui você registra uma receita ou uma despesa: informe a descrição, o valor, a categoria e a data. Duas opções são importantes. Recorrente repete o lançamento todo mês, como aluguel ou assinatura. Cartão de crédito permite dividir a compra em parcelas. No celular, o botão ＋ no centro da barra inferior abre esse formulário de qualquer tela.' },
+
+  { tela: 'receitas', alvo: [], titulo: '↑ Receitas',
+    texto: 'Mostra todas as entradas de dinheiro do mês, como salário e outros recebimentos. Confira aqui se tudo foi lançado corretamente. Para corrigir um item, use a edição do próprio lançamento na lista.' },
+
+  { tela: 'despesas', alvo: [], titulo: '↓ Gastos (Despesas)',
+    texto: 'Lista as saídas de dinheiro do mês, organizadas por categoria. É a tela ideal para descobrir para onde o dinheiro está indo e onde é possível reduzir gastos.' },
+
+  { tela: 'cartao', alvo: [], titulo: '💳 Cartão de crédito',
+    texto: 'Reúne as compras feitas no cartão e as faturas. Compras parceladas aparecem distribuídas nos meses seguintes. Se o alerta estiver ativado em Alertas, o app também avisa quando uma fatura está perto do vencimento.' },
+
+  { tela: 'caixinhas', alvo: [], titulo: '📦 Caixinhas',
+    texto: 'Caixinhas são reservas separadas para objetivos específicos, como uma viagem ou a troca de um aparelho. Crie uma com ＋ Nova e depois adicione ou retire valores sempre que quiser.' },
+
+  { tela: 'metas', alvo: [], titulo: '🎯 Metas',
+    texto: 'Cada meta tem um valor alvo e um prazo. Use ➕ para guardar dinheiro, ➖ para retirar, ✏️ para editar nome, ícone, valor ou prazo, e ✕ para excluir. A barra mostra o percentual alcançado e o status: iniciado, em progresso ou concluído.' },
+
+  { tela: 'investimentos', alvo: [], titulo: '◈ Investimentos',
+    texto: 'Acompanhe o total investido e o valor atual das suas aplicações. Assim você enxerga a evolução do seu dinheiro aplicado ao longo do tempo.' },
+
+  { tela: 'patrimonio', alvo: [], titulo: '▦ Patrimônio',
+    texto: 'Mostra o total de ativos acumulados, somando o que você tem guardado e investido. É a visão de longo prazo da sua situação financeira.' },
+
+  { tela: 'reserva', alvo: [], titulo: '🛡️ Reserva de emergência',
+    texto: 'Acompanha o fundo de emergência, o dinheiro guardado para imprevistos como perda de renda ou gastos inesperados de saúde. Manter essa reserva separada ajuda a evitar dívidas em momentos difíceis.' },
+
+  { tela: 'planejamento', alvo: [], titulo: '🔮 Planejamento',
+    texto: 'Mostra os lançamentos recorrentes, ou seja, os que se repetem todo mês. Use esta tela para revisar o que já está fixo no seu orçamento antes de planejar os próximos meses.' },
+
+  { tela: 'dashboard', modal: { abrir: () => openOrcModal(), fechar: 'modal-orc' }, alvo: [], titulo: '📊 Orçamento',
+    texto: 'Orçamento define um limite mensal de gasto para cada categoria, em reais. Com esses limites definidos, o app ajuda você a comparar o que foi gasto com o que foi planejado. A janela já está aberta para você conhecer.' },
+
+  { tela: 'dashboard', modal: { abrir: () => openMetaEcoModal(), fechar: 'modal-meta-eco' }, alvo: [], titulo: '🎯 Meta de economia',
+    texto: 'Defina quanto você deseja poupar por mês. Esse valor serve de referência para acompanhar se a sua economia está no ritmo planejado. A janela já está aberta para você conhecer.' },
+
+  { tela: 'financeiro', alvo: [], titulo: '💰 Financeiro',
+    texto: 'Reúne as informações financeiras gerais da sua conta. Use o botão ✏️ Editar para atualizar os dados exibidos nesta tela.' },
+
+  { tela: 'historico', alvo: [], titulo: '📊 Histórico',
+    texto: 'Mostra a evolução do saldo mês a mês, com receitas, despesas e saldo de cada período. É ótima para perceber se você está melhorando ao longo do tempo.' },
+
+  { tela: 'comparativo', alvo: [], titulo: '↔️ Comparativo',
+    texto: 'Compara o mês atual com o mês anterior, para você ver rapidamente o que subiu e o que caiu em receitas e despesas.' },
+
+  { tela: 'projecao', alvo: [], titulo: '📉 Projeção',
+    texto: 'Estima o seu saldo para os próximos 6 meses, com base nos lançamentos recorrentes e na média dos meses anteriores. Serve para antecipar meses apertados e agir com antecedência.' },
+
+  { tela: 'simulador', alvo: [], titulo: '🧮 Simulador',
+    texto: 'Simule cenários antes de decidir. A aba Investimento calcula o crescimento de uma aplicação, Financiamento mostra o impacto de uma parcela e Impacto mostra como essas decisões afetam o seu orçamento.' },
+
+  { tela: 'dados', alvo: [], titulo: '📂 Dados',
+    texto: 'Aqui ficam as ferramentas de backup. Use Exportar para salvar uma cópia dos seus dados em um arquivo e guarde esse arquivo em local seguro. Como os dados ficam salvos neste aparelho, faça cópias com regularidade.' },
+
+  { tela: 'dashboard', modal: { abrir: () => { openModal('modal-notif'); initNotifModal(); }, fechar: 'modal-notif' }, alvo: [], titulo: '🔔 Alertas',
+    texto: 'Configure lembretes, como o de registrar os gastos do dia e os avisos de vencimento de fatura. Você também pode testar as notificações por aqui. A janela já está aberta para você conhecer.' },
+
+  { tela: null, alvo: ['.theme-wrap', '#mobThemeBtn', '#hideValuesBtn', '#mobEyeBtn'], titulo: '🌙 Aparência e privacidade',
+    texto: 'O botão 🌙 alterna entre tema claro e escuro. O 👁️ oculta os valores das telas, o que é útil para usar o app em público. No celular, os dois também estão no menu Mais.' },
+
+  { tela: 'dashboard', alvo: [], titulo: '✅ Tudo pronto!',
+    texto: 'Você conheceu todas as telas do FinanceApp. Para rever este tutorial a qualquer momento, toque em ❓ Tutorial no topo ou no menu Mais. Se não quiser vê-lo na próxima abertura, marque a opção abaixo.' }
+];
+
+let tutIndice = 0;
+let tutModalFechar = null;
+
+function tutorialChave() {
+  return 'financeapp_tutorial_oculto_' + (currentUser ? currentUser.id : 'anon');
+}
+function tutorialOculto() {
+  return localStorage.getItem(tutorialChave()) === '1';
+}
+
+function tutLimparDestaque() {
+  document.querySelectorAll('.tut-destaque').forEach(el => el.classList.remove('tut-destaque'));
+}
+function tutDestacar(seletores) {
+  tutLimparDestaque();
+  seletores.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) el.classList.add('tut-destaque');
+    });
+  });
+}
+function tutFecharModal() {
+  if (tutModalFechar) { closeModal(tutModalFechar); tutModalFechar = null; }
+}
+
+/* Navega até a tela, sincronizando a barra lateral e a barra inferior do celular */
+function tutIrPara(tela) {
+  if (!tela) return;
+  const el = document.querySelector('.nav-item[onclick*="\'' + tela + '\'"]');
+  goTo(tela, el);
+  ['dashboard', 'despesas', 'cartao'].forEach(s => {
+    const b = document.getElementById('mn-' + s);
+    if (b) b.classList.toggle('active', s === tela);
+  });
+  const more = document.getElementById('mn-more');
+  if (more) more.classList.toggle('active', !['dashboard', 'despesas', 'cartao'].includes(tela));
+  const mobTitle = document.getElementById('mobTitle');
+  if (mobTitle) mobTitle.textContent = PAGE_TITLES[tela] || tela;
+  const mobTop = document.getElementById('mob-topbar');
+  if (mobTop) mobTop.style.display = tela === 'dashboard' ? 'none' : 'flex';
+  closeDrawer();
+  closeQA();
+  const conteudo = document.querySelector('.content');
+  if (conteudo) conteudo.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+function tutorialMostrar(i) {
+  tutFecharModal();
+  tutIndice = Math.max(0, Math.min(TUT_PASSOS.length - 1, i));
+  const p = TUT_PASSOS[tutIndice];
+
+  tutIrPara(p.tela);
+  if (p.modal) {
+    p.modal.abrir();
+    tutModalFechar = p.modal.fechar;
+  }
+  tutDestacar(p.alvo || []);
+
+  document.getElementById('tut-progresso').textContent = (tutIndice + 1) + ' de ' + TUT_PASSOS.length;
+  document.getElementById('tut-titulo').textContent = p.titulo;
+  document.getElementById('tut-texto').textContent = p.texto;
+  document.getElementById('tut-barra-fill').style.width = ((tutIndice + 1) / TUT_PASSOS.length * 100) + '%';
+  document.getElementById('tut-voltar').style.visibility = tutIndice === 0 ? 'hidden' : 'visible';
+  document.getElementById('tut-avancar').textContent = tutIndice === TUT_PASSOS.length - 1 ? 'Concluir' : 'Próximo';
+}
+
+function openTutorial() {
+  document.getElementById('tut-nao-mostrar').checked = tutorialOculto();
+  document.getElementById('tut-painel').classList.add('open');
+  tutorialMostrar(0);
+}
+function tutorialAvancar() {
+  if (tutIndice >= TUT_PASSOS.length - 1) return tutorialEncerrar();
+  tutorialMostrar(tutIndice + 1);
+}
+function tutorialVoltar() {
+  tutorialMostrar(tutIndice - 1);
+}
+function tutorialEncerrar() {
+  tutFecharModal();
+  tutLimparDestaque();
+  document.getElementById('tut-painel').classList.remove('open');
+}
+function tutorialSalvarPreferencia(el) {
+  if (el.checked) localStorage.setItem(tutorialChave(), '1');
+  else localStorage.removeItem(tutorialChave());
+}
+
+/* Inicia automaticamente após o login/cadastro, se o usuário não tiver optado por ocultar */
+const _entrarAntesDoTutorial = entrarNoApp;
+entrarNoApp = function() {
+  _entrarAntesDoTutorial();
+  if (!tutorialOculto()) setTimeout(openTutorial, 1200);
+};
+</script>
 
 <datalist id="desc-sugestoes"></datalist>
 </body>
