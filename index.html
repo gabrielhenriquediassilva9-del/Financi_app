@@ -1713,6 +1713,19 @@ td.negative { color:var(--red);   font-weight:600; }
 
 /* ── Seção de auth: animação já existente ─ manter ── */
 
+
+/* ═══ TUTORIAL DE PRIMEIRO ACESSO ═══ */
+.tut-box { max-width:440px; margin:0 auto; }
+.tut-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-size:12px; color:var(--muted); }
+.tut-x { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 8px; }
+.tut-icone { font-size:44px; text-align:center; margin-bottom:10px; }
+.tut-titulo { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; text-align:center; color:var(--text); margin-bottom:10px; }
+.tut-texto { font-size:14px; line-height:1.6; color:var(--text2); text-align:center; min-height:96px; }
+.tut-dots { display:flex; justify-content:center; gap:6px; margin:16px 0 12px; }
+.tut-dot { width:7px; height:7px; border-radius:50%; background:var(--surface3); transition:var(--transition); }
+.tut-dot.on { background:var(--green); width:18px; border-radius:4px; }
+.tut-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; margin-top:4px; }
+.tut-check input { width:16px; height:16px; accent-color:var(--green); }
 </style>
 </head>
 <body>
@@ -1867,6 +1880,7 @@ td.negative { color:var(--red);   font-weight:600; }
 <header id="mob-topbar" style="display:none">
   <div class="mob-logo">$</div>
   <div class="mob-title" id="mobTitle">Dashboard</div>
+  <button class="mob-btn" onclick="openTutorial()" title="Tutorial">❓</button>
   <button class="mob-btn" onclick="toggleHideValues()" id="mobEyeBtn">🙈</button>
   <button class="mob-btn" onclick="toggleTheme()" id="mobThemeBtn">🌙</button>
   <div class="avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0" id="mobAvatar">JP</div>
@@ -1905,6 +1919,7 @@ td.negative { color:var(--red);   font-weight:600; }
     <div class="mob-drawer-item" onclick="mobGoTo('lancamento')"><div>📋</div><span>Extratos</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('historico')"><div>📊</div><span>Histórico</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('dados')"><div>📂</div><span>Dados</span></div>
+    <div class="mob-drawer-item" onclick="closeDrawer();openTutorial()"><div>❓</div><span>Tutorial</span></div>
     <div class="mob-drawer-item" onclick="closeDrawer();openMetaEcoModal()"><div>🎯</div><span>Meta Eco.</span></div>
     <div class="mob-drawer-item" onclick="closeDrawer();openOrcModal()"><div>📊</div><span>Orçamento</span></div>
     <div class="mob-drawer-item" onclick="mobGoTo('financeiro')"><div>💰</div><span>Financeiro</span></div>
@@ -2082,6 +2097,9 @@ td.negative { color:var(--red);   font-weight:600; }
       <button class="toggle-pill" aria-label="Tema"></button>
       <span class="t-icon t-icon-moon">🌙</span>
     </div>
+
+    <!-- TUTORIAL -->
+    <button class="hide-btn" onclick="openTutorial()" title="Tutorial do aplicativo"><span>❓</span><span>Tutorial</span></button>
 
     <!-- OCULTAR VALORES -->
     <button class="hide-btn" id="hideValuesBtn" onclick="toggleHideValues()" title="Ocultar/exibir valores">
@@ -8592,6 +8610,109 @@ goTo = function(screen, el, forceDir) {
     </div>
   </div>
 </div>
+
+
+<!-- ══ TUTORIAL ══ -->
+<div class="modal-overlay" id="modal-tutorial" onclick="if(event.target===this)tutorialFechar()">
+  <div class="modal-box tut-box">
+    <div class="tut-head">
+      <span id="tut-contador">1 de 1</span>
+      <button class="tut-x" onclick="tutorialFechar()" aria-label="Fechar tutorial">✕</button>
+    </div>
+    <div class="tut-icone" id="tut-icone"></div>
+    <div class="tut-titulo" id="tut-titulo"></div>
+    <div class="tut-texto" id="tut-texto"></div>
+    <div class="tut-dots" id="tut-dots"></div>
+    <label class="tut-check">
+      <input type="checkbox" id="tut-nao-mostrar">
+      Não mostrar novamente ao abrir o app
+    </label>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="tut-voltar" style="flex:1;justify-content:center" onclick="tutorialPasso(-1)">Voltar</button>
+      <button class="btn btn-green" id="tut-avancar" style="flex:1;justify-content:center" onclick="tutorialAvancar()">Próximo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   TUTORIAL DE USO — exibido no primeiro acesso e
+   acessível a qualquer momento pelo botão ❓ / menu Mais
+═══════════════════════════════════════════════════ */
+const TUT_PASSOS = [
+  { icone:'👋', titulo:'Bem-vindo ao FinanceApp',
+    texto:'Aqui você controla receitas, despesas, cartão, metas e investimentos. Seus dados ficam salvos neste dispositivo. Vamos conhecer as principais telas em poucos passos.' },
+  { icone:'📊', titulo:'Início',
+    texto:'O painel mostra o resumo do mês selecionado. Use o seletor de mês no topo para ver outros períodos. Use o botão 👁️ para ocultar os valores quando precisar.' },
+  { icone:'＋', titulo:'Novo lançamento',
+    texto:'No celular, toque no botão ＋ no centro da barra inferior. No computador, use Lançamento na barra lateral. Registre uma receita ou despesa e, se quiser, marque como compra no cartão.' },
+  { icone:'↕️', titulo:'Receitas e Gastos',
+    texto:'Nas telas Receitas e Gastos você acompanha os lançamentos do mês e faz os ajustes que precisar.' },
+  { icone:'💳', titulo:'Cartão de crédito',
+    texto:'Acompanhe as compras e as faturas do cartão em uma tela própria, separada do saldo do mês.' },
+  { icone:'🎯', titulo:'Metas, Caixinhas e Investimentos',
+    texto:'Crie metas com valor e prazo, separe dinheiro em caixinhas e registre seus investimentos para acompanhar a evolução do seu patrimônio.' },
+  { icone:'⋯', titulo:'Menu Mais',
+    texto:'No celular, toque em Mais para abrir todas as telas, como Patrimônio, Orçamento, Projeção, Simulador, Comparar, Histórico e Dados. Em Dados ficam o backup e a exportação.' },
+  { icone:'🔔', titulo:'Alertas e aparência',
+    texto:'Em Alertas você configura lembretes, como o de registrar gastos e o de vencimento de fatura. Use 🌙 para alternar entre tema claro e escuro.' },
+  { icone:'❓', titulo:'Rever o tutorial',
+    texto:'Você pode abrir este tutorial a qualquer momento pelo botão ❓ no topo ou pelo menu Mais. Ao concluir, marque "Não mostrar novamente" se não quiser vê-lo ao abrir o app.' }
+];
+
+let tutPasso = 0;
+
+function tutorialChave() {
+  return 'financeapp_tutorial_oculto_' + (currentUser ? currentUser.id : 'anon');
+}
+function tutorialOculto() {
+  return localStorage.getItem(tutorialChave()) === '1';
+}
+
+function tutorialRender() {
+  const p = TUT_PASSOS[tutPasso];
+  const ultimo = tutPasso === TUT_PASSOS.length - 1;
+  document.getElementById('tut-contador').textContent = (tutPasso + 1) + ' de ' + TUT_PASSOS.length;
+  document.getElementById('tut-icone').textContent = p.icone;
+  document.getElementById('tut-titulo').textContent = p.titulo;
+  document.getElementById('tut-texto').textContent = p.texto;
+  document.getElementById('tut-voltar').style.visibility = tutPasso === 0 ? 'hidden' : 'visible';
+  document.getElementById('tut-avancar').textContent = ultimo ? 'Concluir' : 'Próximo';
+  document.getElementById('tut-dots').innerHTML = TUT_PASSOS
+    .map((_, i) => '<span class="tut-dot' + (i === tutPasso ? ' on' : '') + '"></span>').join('');
+}
+
+function openTutorial() {
+  tutPasso = 0;
+  document.getElementById('tut-nao-mostrar').checked = tutorialOculto();
+  tutorialRender();
+  openModal('modal-tutorial');
+}
+
+function tutorialPasso(delta) {
+  tutPasso = Math.max(0, Math.min(TUT_PASSOS.length - 1, tutPasso + delta));
+  tutorialRender();
+}
+
+function tutorialAvancar() {
+  if (tutPasso >= TUT_PASSOS.length - 1) return tutorialFechar();
+  tutorialPasso(1);
+}
+
+function tutorialFechar() {
+  const chave = tutorialChave();
+  if (document.getElementById('tut-nao-mostrar').checked) localStorage.setItem(chave, '1');
+  else localStorage.removeItem(chave);
+  closeModal('modal-tutorial');
+}
+
+/* Exibe automaticamente após o login/cadastro, apenas se o usuário não optou por ocultar */
+const _entrarAntesDoTutorial = entrarNoApp;
+entrarNoApp = function() {
+  _entrarAntesDoTutorial();
+  if (!tutorialOculto()) setTimeout(openTutorial, 1200);
+};
+</script>
 
 <datalist id="desc-sugestoes"></datalist>
 </body>
